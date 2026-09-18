@@ -1,8 +1,8 @@
 ---
 name: prisma-composer-core-concepts
 metadata:
-  library: "@prisma/composer"
-  library_version: "0.20.0"
+  library: '@prisma/composer'
+  library_version: '0.20.0'
   version: 2026.9.1
 description: >-
   Use when deploying or managing an app that uses Prisma Composer
@@ -54,9 +54,9 @@ Nodes connect through **ports**: `deps` declares what a node requires,
 
 ```ts
 // module.ts
-import { module } from "@prisma/composer";
+import { module } from '@prisma/composer';
 
-export default module("store", ({ provision }) => {
+export default module('store', ({ provision }) => {
   const catalog = provision(catalogModule);
   provision(storefrontService, { deps: { catalog: catalog.rpc } });
 });
@@ -106,9 +106,9 @@ produces and the platform boots:
 ```ts
 // service.ts
 export default compute({
-  name: "auth",
+  name: 'auth',
   deps: { db: rawPostgres() },
-  build: node({ module: import.meta.url, entry: "../dist/server.mjs" }),
+  build: node({ module: import.meta.url, entry: '../dist/server.mjs' }),
   expose: { rpc: authContract },
 });
 
@@ -117,7 +117,7 @@ const { db } = service.load(); // { url }: you construct your own client
 const handler = serve(service, {
   rpc: { verify: async ({ token }) => ({ ok: token.length > 0 }) },
 });
-Bun.serve({ port: service.port(), hostname: "0.0.0.0", fetch: handler });
+Bun.serve({ port: service.port(), hostname: '0.0.0.0', fetch: handler });
 ```
 
 The consumer declares `deps: { auth: rpc(authContract) }` and gets a typed

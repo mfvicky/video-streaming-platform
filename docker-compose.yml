@@ -8,18 +8,18 @@ services:
       POSTGRES_PASSWORD: app_password
       POSTGRES_DB: app_db
     ports:
-      - "5432:5432"
+      - '5432:5432'
 
   redis:
     image: redis:alpine
     ports:
-      - "6379:6379"
+      - '6379:6379'
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
     ports:
-      - "5672:5672"   # AMQP
-      - "15672:15672" # Dashboard
+      - '5672:5672' # AMQP
+      - '15672:15672' # Dashboard
 
   minio:
     image: minio/minio
@@ -28,5 +28,5 @@ services:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadminpassword
     ports:
-      - "9000:9000" # API
-      - "9001:9001" # Console
+      - '9000:9000' # API
+      - '9001:9001' # Console

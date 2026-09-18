@@ -2,7 +2,7 @@
 
 A scalable, full-stack video processing pipeline built with Node.js, Express, React, TypeScript, and a microservice background worker architecture.
 
-## 🚀 Architecture Overview
+## Architecture Overview
 
 - **Frontend (`apps/web`)**: React, TypeScript, Vite
 - **Backend API (`apps/api`)**: Express, REST API, Swagger/OpenAPI, Pino, Zod
@@ -15,23 +15,56 @@ A scalable, full-stack video processing pipeline built with Node.js, Express, Re
 
 ---
 
-## 🛠️ Prerequisites
+## Prerequisites
 
 Ensure you have the following installed on your machine:
 
-- **Node.js**: `>= 20.x`
-- **pnpm**: `>= 9.x` (`npm i -g pnpm`)
-- **Docker & Docker Compose**: For local infrastructure
-- **FFmpeg**: Required for running the worker locally (`brew install ffmpeg` / `sudo apt install ffmpeg`)
+- Node.js: v20 or higher
+- pnpm: v8 or higher
+- Docker Desktop: For running PostgreSQL, Redis, RabbitMQ, and MinIO locally
 
 ---
 
-## 🏁 Quick Start
+### Run Husky
+
+```bash
+pnpm run prepare
+```
+
+### Run testing
+
+```bash
+pnpm run test
+```
+
+### Run prisma
+
+```bash
+pnpm run db:migrate
+pnpm run db:generate
+```
+
+### Run Prettier
+
+```bash
+pnpm run format
+pnpm run format:check
+```
+
+## Quick Start
 
 ### 1. Clone & Install Dependencies
 
 ```bash
-git clone [https://github.com/your-username/video-platform.git](https://github.com/your-username/video-platform.git)
-cd video-platform
+git clone https://github.com/mfvicky/video-streaming-platform.git
+cd video-streaming-platform
 pnpm install
+```
+
+### 2. Run application command
+
+```bash
+pnpm run dev:web
+pnpm run dev:api
+pnpm run dev:worker
 ```

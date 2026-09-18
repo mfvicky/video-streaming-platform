@@ -1,8 +1,8 @@
 ---
 name: prisma-platform-core-concepts
 metadata:
-  library: "prisma"
-  library_version: "8.0.0-rc.15"
+  library: 'prisma'
+  library_version: '8.0.0-rc.15'
   version: 2026.9.1
 description: >-
   Use when hosting, deploying, or operating an app on the Prisma Platform:
@@ -78,12 +78,12 @@ Two config files with different owners:
    `composer`, and `skills`. The composed shape:
 
    ```ts
-   import { definePrismaConfig } from "prisma/config";
-   import { defineConfig } from "@prisma/orm-postgres/config";
+   import { definePrismaConfig } from 'prisma/config';
+   import { defineConfig } from '@prisma/orm-postgres/config';
 
    export default definePrismaConfig({
-     orm: defineConfig({ contract: "./src/prisma/contract.prisma" }),
-     skills: { agents: ["claude"] },
+     orm: defineConfig({ contract: './src/prisma/contract.prisma' }),
+     skills: { agents: ['claude'] },
    });
    ```
 
