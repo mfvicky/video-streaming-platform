@@ -1,0 +1,19 @@
+# Build outputs and dependencies
+node_modules
+dist
+build
+.next
+.turbo
+
+# Prisma generated client
+packages/db/prisma/migrations
+packages/db/src/generated
+
+# Environment & logs
+*.env
+*.env.*
+*.log
+pnpm-lock.yaml
+
+# Public static assets
+public
