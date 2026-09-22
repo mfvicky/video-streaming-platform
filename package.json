@@ -3,12 +3,22 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "esbuild",
+      "@scarf/scarf"
+    ]
+  },
   "scripts": {
     "test": "vitest run",
-    "test:services": "tsx test-services.js",
+    "test:services": "pnpm --filter api exec tsx test-services.ts",
     "prepare": "husky",
     "dev:web": "pnpm --filter web dev",
     "dev:api": "pnpm --filter api dev",
+    "dev:api:once": "pnpm --filter api dev:once",
     "dev:worker": "pnpm --filter worker dev",
     "db:migrate": "pnpm --filter @app/db exec prisma migrate dev",
     "db:generate": "pnpm --filter @app/db exec prisma generate",

@@ -61,6 +61,13 @@ pnpm run format:check
 ```bash
 docker compose pull
 docker compose up -d
+docker compose ps
+
+
+docker compose up --build -d
+docker compose build --no-cache api
+
+docker exec -it dev_redis redis-cli
 
 pnpm run test:services
 ```
