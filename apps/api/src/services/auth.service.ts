@@ -1,0 +1,105 @@
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { PrismaClient } from '@app/db';
+import { RegisterInput, LoginInput, UserRole } from '@app/shared';
+import { redis } from '../lib/redis';
+
+const prisma = new PrismaClient();
+
+const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-access-key';
+const REFRESH_SECRET = process.env.REFRESH_SECRET || 'super-secret-refresh-key';
+const ACCESS_TOKEN_EXPIRY = '15m';
+const REFRESH_TOKEN_EXPIRY_DAYS = 7;
+
+export class AuthService {
+  static async register(input: RegisterInput) {
+    const existingUser = await prisma.user.findUnique({
+      where: { email: input.email },
+    });
+
+    if (existingUser) {
+      throw new Error('User already exists with this email');
+    }
+
+    const hashedPassword = await bcrypt.hash(input.password, 12);
+
+    const user = await prisma.user.create({
+      data: {
+        email: input.email,
+        password: hashedPassword,
+        name: input.name,
+        role: (input.role as UserRole) || 'USER',
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        createdAt: true,
+      },
+    });
+
+    return user;
+  }
+
+  static async login(input: LoginInput) {
+    const user = await prisma.user.findUnique({
+      where: { email: input.email },
+    });
+
+    if (!user) {
+      throw new Error('Invalid email or password');
+    }
+
+    const isPasswordValid = await bcrypt.compare(input.password, user.password);
+
+    if (!isPasswordValid) {
+      throw new Error('Invalid email or password');
+    }
+
+    const accessToken = this.generateAccessToken(user.id, user.role);
+    const refreshToken = await this.generateRefreshToken(user.id);
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
+      accessToken,
+      refreshToken,
+    };
+  }
+
+  private static generateAccessToken(userId: string, role: string): string {
+    return jwt.sign({ sub: userId, role }, JWT_SECRET, {
+      expiresIn: ACCESS_TOKEN_EXPIRY,
+    });
+  }
+
+  private static async generateRefreshToken(userId: string): Promise<string> {
+    const refreshToken = jwt.sign({ sub: userId }, REFRESH_SECRET, {
+      expiresIn: `${REFRESH_TOKEN_EXPIRY_DAYS}d`,
+    });
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + REFRESH_TOKEN_EXPIRY_DAYS);
+
+    // Hash refresh token before saving in database
+    const tokenHash = await bcrypt.hash(refreshToken, 10);
+
+    await prisma.refreshToken.create({
+      data: {
+        tokenHash,
+        userId,
+        expiresAt,
+      },
+    });
+
+    // Store in Redis cache for fast lookup & revocation checks
+    await redis.setex(`refresh_token:${userId}`, REFRESH_TOKEN_EXPIRY_DAYS * 86400, refreshToken);
+
+    return refreshToken;
+  }
+}
