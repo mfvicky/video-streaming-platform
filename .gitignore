@@ -39,7 +39,11 @@ uploads/
 temp/
 *.mp4
 *.m3u8
-*.ts
+
+# Only ignore MPEG-TS video segments in generated output dirs, not TypeScript files
+uploads/**/*.ts
+temp/**/*.ts
+hls/**/*.ts
 
 # Testing & Coverage
 coverage/

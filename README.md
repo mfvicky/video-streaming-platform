@@ -51,6 +51,20 @@ pnpm run format
 pnpm run format:check
 ```
 
+### Run docker setup
+
+- PostgreSQL
+- Redis
+- RabbitMQ
+- MinIO
+
+```bash
+docker compose pull
+docker compose up -d
+
+pnpm run test:services
+```
+
 ## Quick Start
 
 ### 1. Clone & Install Dependencies
