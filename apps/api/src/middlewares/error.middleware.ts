@@ -4,12 +4,21 @@ import { AppError } from '../utils/errors';
 import { logger } from '../lib/logger';
 
 export const errorHandler = (
-  err: Error,
+  err: Error & { status?: number; statusCode?: number },
   _req: Request,
   res: Response,
   _next: NextFunction
 ) => {
   logger.error(err);
+
+  // Handle body-parser and other standard HTTP status errors (e.g., 413 Payload Too Large)
+  const statusCode = err.status || err.statusCode;
+  if (statusCode) {
+    return res.status(statusCode).json({
+      success: false,
+      message: err.message,
+    });
+  }
 
   if (err instanceof ZodError) {
     return res.status(400).json({

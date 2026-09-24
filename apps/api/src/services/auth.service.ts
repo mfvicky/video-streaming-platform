@@ -3,11 +3,13 @@ import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@app/db';
 import { RegisterInput, LoginInput, UserRole } from '@app/shared';
 import { redis } from '../lib/redis';
+import { env } from '../config/env';
 
 const prisma = new PrismaClient();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-access-key';
-const REFRESH_SECRET = process.env.REFRESH_SECRET || 'super-secret-refresh-key';
+const JWT_SECRET = env.JWT_SECRET;
+const REFRESH_SECRET = env.REFRESH_SECRET;
+
 const ACCESS_TOKEN_EXPIRY = '15m';
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
 

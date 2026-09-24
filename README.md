@@ -70,6 +70,15 @@ docker compose build --no-cache api
 docker exec -it dev_redis redis-cli
 
 pnpm run test:services
+
+pnpm --filter @app/shared build
+
+```
+
+### Run test api
+
+```bash
+pnpm run test:api
 ```
 
 ## Quick Start

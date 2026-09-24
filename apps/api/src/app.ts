@@ -11,14 +11,19 @@ import authRoutes from './routes/auth.routes';
 
 const app = express();
 
+
+
 // Security and Core Middlewares
 app.use(helmet());
 app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
-app.use(cookieParser());
-app.use(express.json());
 
 // Global Rate Limiting
 app.use(globalRateLimiter);
+
+// Security: Enforce request body payload size limits
+app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: true, limit: '100kb' }));
+app.use(cookieParser());
 
 // API Documentation
 setupSwagger(app);
