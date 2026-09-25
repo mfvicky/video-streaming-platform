@@ -12,6 +12,9 @@ const envSchema = z.object({
   // Auth
   JWT_SECRET: z.string().min(8, 'JWT_SECRET must be at least 8 characters'),
   REFRESH_SECRET: z.string().min(8, 'REFRESH_SECRET must be at least 8 characters'),
+  // Cryptography
+  RSA_PUBLIC_KEY: z.string().min(1, 'RSA_PUBLIC_KEY is required').transform((val) => val.replace(/\\n/g, '\n')),
+  RSA_PRIVATE_KEY: z.string().min(1, 'RSA_PRIVATE_KEY is required').transform((val) => val.replace(/\\n/g, '\n')),
 
   // Database & Cache
   DATABASE_URL: z.string().url(),

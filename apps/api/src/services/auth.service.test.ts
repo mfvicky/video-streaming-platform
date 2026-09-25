@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 // 1. Load infrastructure mocks FIRST
 import { prismaMock, redisMock } from '../__mocks__/infrastructure';
 
-// 2. Mock external libraries
+// 2. Mock external libraries & utilities
 vi.mock('bcryptjs', () => ({
   default: {
     hash: vi.fn(),
@@ -20,8 +20,14 @@ vi.mock('jsonwebtoken', () => ({
   },
 }));
 
-// 3. Import service AFTER mocks are loaded
+// Mock decryptPassword to return the raw input string for unit testing
+vi.mock('../utils/crypto', () => ({
+  decryptPassword: vi.fn((encryptedPassword: string) => encryptedPassword),
+}));
+
+// 3. Import service & utility AFTER mocks are registered
 import { AuthService } from './auth.service';
+import { decryptPassword } from '../utils/crypto';
 
 describe('AuthService Unit Tests', () => {
   beforeEach(() => {
@@ -50,7 +56,8 @@ describe('AuthService Unit Tests', () => {
       const result = await AuthService.register(registerInput);
 
       expect(prismaMock.user.findUnique).toHaveBeenCalledWith({ where: { email: registerInput.email } });
-      expect(bcrypt.hash).toHaveBeenCalledWith(registerInput.password, 12);
+      expect(decryptPassword).toHaveBeenCalledWith(registerInput.password);
+      expect(bcrypt.hash).toHaveBeenCalledWith('Password123!', 12);
       expect(prismaMock.user.create).toHaveBeenCalled();
       expect(result).toHaveProperty('id', 'usr_123');
     });
@@ -67,6 +74,7 @@ describe('AuthService Unit Tests', () => {
 
       await expect(AuthService.register(registerInput)).rejects.toThrow('User already exists with this email');
       expect(prismaMock.user.create).not.toHaveBeenCalled();
+      expect(decryptPassword).not.toHaveBeenCalled();
     });
   });
 
@@ -90,6 +98,8 @@ describe('AuthService Unit Tests', () => {
 
       const result = await AuthService.login(loginInput);
 
+      expect(decryptPassword).toHaveBeenCalledWith(loginInput.password);
+      expect(bcrypt.compare).toHaveBeenCalledWith('Password123!', mockUser.password);
       expect(result.user.id).toBe('usr_123');
       expect(result).toHaveProperty('accessToken');
       expect(result).toHaveProperty('refreshToken');
@@ -102,6 +112,7 @@ describe('AuthService Unit Tests', () => {
       vi.mocked(bcrypt.compare).mockResolvedValue(false as never);
 
       await expect(AuthService.login(loginInput)).rejects.toThrow('Invalid email or password');
+      expect(decryptPassword).toHaveBeenCalledWith('WrongPassword');
     });
   });
 });

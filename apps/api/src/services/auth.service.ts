@@ -4,6 +4,7 @@ import { PrismaClient } from '@app/db';
 import { RegisterInput, LoginInput, UserRole } from '@app/shared';
 import { redis } from '../lib/redis';
 import { env } from '../config/env';
+import { decryptPassword } from '../utils/crypto';
 
 const prisma = new PrismaClient();
 
@@ -23,7 +24,9 @@ export class AuthService {
       throw new Error('User already exists with this email');
     }
 
-    const hashedPassword = await bcrypt.hash(input.password, 12);
+    // Decrypt the RSA-encrypted password from frontend payload
+    const plainTextPassword = decryptPassword(input.password);
+    const hashedPassword = await bcrypt.hash(plainTextPassword, 12);
 
     const user = await prisma.user.create({
       data: {
@@ -53,7 +56,9 @@ export class AuthService {
       throw new Error('Invalid email or password');
     }
 
-    const isPasswordValid = await bcrypt.compare(input.password, user.password);
+    // Decrypt the RSA-encrypted password from frontend payload
+    const plainTextPassword = decryptPassword(input.password);
+    const isPasswordValid = await bcrypt.compare(plainTextPassword, user.password);
 
     if (!isPasswordValid) {
       throw new Error('Invalid email or password');
