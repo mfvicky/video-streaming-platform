@@ -21,6 +21,27 @@ export async function connectRabbitMQ(): Promise<void> {
   }
 }
 
+export async function publishToQueue(queueName: string, message: object): Promise<boolean> {
+  try {
+    if (!channel) {
+      await connectRabbitMQ();
+    }
+    if (!channel) {
+      throw new Error('RabbitMQ channel is unavailable');
+    }
+
+    await channel.assertQueue(queueName, { durable: true });
+    return channel.sendToQueue(
+      queueName,
+      Buffer.from(JSON.stringify(message)),
+      { persistent: true }
+    );
+  } catch (error) {
+    logger.error({ error }, `Failed to publish message to queue ${queueName}`);
+    throw error;
+  }
+}
+
 export async function closeRabbitMQ(): Promise<void> {
   try {
     if (channel) {

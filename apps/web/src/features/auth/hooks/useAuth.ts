@@ -9,10 +9,19 @@ export const useLogin = () => {
 
   return useMutation({
     mutationFn: (data: LoginInput) => authApi.login(data),
-    onSuccess: (data) => {
-      localStorage.setItem('accessToken', data.accessToken);
+    onSuccess: (response: any) => {
+      console.log('Login successful, received access token:', response);
+      const token = response?.data?.accessToken
+      localStorage.setItem('accessToken', token);
+      // json stringfy user object
+      localStorage.setItem('user', JSON.stringify(response?.data?.user));
       toast.success('Welcome back to StreamVerse!');
-      navigate('/');
+      // response.data contains user information role 'CREATOR' url must be /creator
+      if (response.data.user.role === 'CREATOR') {
+        navigate('/creator');
+      } else {
+        navigate('/');
+      }
     },
     onError: (error: any) => {
       const message = error.response?.data?.message || 'Invalid login credentials';

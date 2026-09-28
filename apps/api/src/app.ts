@@ -7,6 +7,7 @@ import { setupSwagger } from './config/swagger';
 import { globalRateLimiter } from './middlewares/rateLimiter.middleware';
 import { errorHandler } from './middlewares/error.middleware';
 import authRoutes from './routes/auth.routes';
+import videoRoutes from './routes/video.routes';
 
 
 const app = express();
@@ -30,6 +31,7 @@ setupSwagger(app);
 
 // Routes
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/video', videoRoutes);
 
 // Global Error Handler (Must be registered last)
 app.use(errorHandler);

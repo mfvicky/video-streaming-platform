@@ -4,6 +4,7 @@ import { logger } from './lib/logger';
 import { prisma, checkDatabaseConnection } from './lib/prisma';
 import { redis } from './lib/redis';
 import { connectRabbitMQ, closeRabbitMQ } from './lib/rabbitmq';
+import { initBuckets } from './lib/storage'; 
 
 async function bootstrap() {
   try {
@@ -13,12 +14,16 @@ async function bootstrap() {
     // 2. Connect RabbitMQ
     await connectRabbitMQ();
 
-    // 3. Start HTTP Server
+    // 3. Initialize MinIO Buckets (Ensures 'videos' & 'thumbnails' exist)
+    await initBuckets();
+    logger.info('MinIO buckets initialized successfully.');
+
+    // 4. Start HTTP Server
     const server = app.listen(env.PORT, () => {
       logger.info(`Server running on http://localhost:${env.PORT} in ${env.NODE_ENV} mode`);
     });
 
-    // 4. Graceful Shutdown Function
+    // 5. Graceful Shutdown Function
     let isShuttingDown = false;
 
     const gracefulShutdown = async (signal: string) => {
