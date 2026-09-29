@@ -1,49 +1,3 @@
-// import * as Minio from 'minio';
-// import path from 'path';
-// import fs from 'fs-extra';
-
-// export const storageClient = new Minio.Client({
-//   endPoint: process.env.MINIO_ENDPOINT || 'localhost',
-//   port: parseInt(process.env.MINIO_PORT || '9000', 10),
-//   useSSL: process.env.MINIO_USE_SSL === 'true',
-//   accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
-//   secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin',
-// });
-
-// /**
-//   Recursively uploads all files (playlists & segments) in a folder to MinIO
-//  */
-// export async function uploadFolderToMinio(
-//   bucketName: string,
-//   targetPrefix: string,
-//   localFolderPath: string
-// ): Promise<void> {
-//   const files = await fs.readdir(localFolderPath);
-
-//   for (const file of files) {
-//     const fullPath = path.join(localFolderPath, file);
-//     const stat = await fs.stat(fullPath);
-
-//     if (stat.isDirectory()) {
-//       // Recursively upload subdirectories (e.g. variant playlists/segments)
-//       await uploadFolderToMinio(bucketName, `${targetPrefix}/${file}`, fullPath);
-//     } else {
-//       const destinationKey = `${targetPrefix}/${file}`;
-      
-//       // Determine content-type for HLS files
-//       let contentType = 'application/octet-stream';
-//       if (file.endsWith('.m3u8')) {
-//         contentType = 'application/x-mpegURL';
-//       } else if (file.endsWith('.ts')) {
-//         contentType = 'video/MP2T';
-//       }
-
-//       await storageClient.fPutObject(bucketName, destinationKey, fullPath, {
-//         'Content-Type': contentType,
-//       });
-//     }
-//   }
-// }
 import * as Minio from 'minio';
 import path from 'path';
 import fs from 'fs-extra';
@@ -58,7 +12,7 @@ export const storageClient = new Minio.Client({
 });
 
 /**
- * Ensures the target bucket exists in MinIO before attempting operations
+ * Ensures the target bucket exists in MinIO and applies a public read policy for video streaming
  */
 export async function ensureBucketExists(bucketName: string): Promise<void> {
   try {
@@ -67,8 +21,24 @@ export async function ensureBucketExists(bucketName: string): Promise<void> {
       await storageClient.makeBucket(bucketName, 'us-east-1');
       console.log(`[Worker MinIO] Created missing bucket: ${bucketName}`);
     }
+
+    // Set public read policy for HLS manifests and segment files
+    const publicReadPolicy = {
+      Version: '2012-10-17',
+      Statement: [
+        {
+          Effect: 'Allow',
+          Principal: { AWS: ['*'] },
+          Action: ['s3:GetObject'],
+          Resource: [`arn:aws:s3:::${bucketName}/*`],
+        },
+      ],
+    };
+
+    await storageClient.setBucketPolicy(bucketName, JSON.stringify(publicReadPolicy));
+    console.log(`[Worker MinIO] Public read policy set for bucket: ${bucketName}`);
   } catch (error) {
-    console.error(`[Worker MinIO] Failed to verify/create bucket ${bucketName}:`, error);
+    console.error(`[Worker MinIO] Failed to verify/configure bucket ${bucketName}:`, error);
     throw error;
   }
 }

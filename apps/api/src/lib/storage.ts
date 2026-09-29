@@ -9,7 +9,7 @@ export const minioClient = new Minio.Client({
   secretKey: env.MINIO_SECRET_KEY,
 });
 
-// Auto-initialize required buckets
+// Auto-initialize required buckets and set public policies
 export const initBuckets = async () => {
   const buckets = ['videos', 'thumbnails'];
 
@@ -20,8 +20,24 @@ export const initBuckets = async () => {
         await minioClient.makeBucket(bucket, 'us-east-1');
         console.log(`[MinIO] Bucket "${bucket}" created successfully.`);
       }
+
+      // Configure Public Read (s3:GetObject) policy for HLS streaming & assets
+      const publicReadPolicy = {
+        Version: '2012-10-17',
+        Statement: [
+          {
+            Effect: 'Allow',
+            Principal: { AWS: ['*'] },
+            Action: ['s3:GetObject'],
+            Resource: [`arn:aws:s3:::${bucket}/*`],
+          },
+        ],
+      };
+
+      await minioClient.setBucketPolicy(bucket, JSON.stringify(publicReadPolicy));
+      console.log(`[MinIO] Public read policy set successfully for bucket "${bucket}".`);
     } catch (error) {
-      console.error(`[MinIO] Error checking/creating bucket "${bucket}":`, error);
+      console.error(`[MinIO] Error configuring bucket "${bucket}":`, error);
     }
   }
 };
