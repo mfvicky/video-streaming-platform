@@ -22,7 +22,7 @@ export async function ensureBucketExists(bucketName: string): Promise<void> {
       console.log(`[Worker MinIO] Created missing bucket: ${bucketName}`);
     }
 
-    // Set public read policy for HLS manifests and segment files
+    // Set public read policy for HLS manifests, segments, and thumbnails
     const publicReadPolicy = {
       Version: '2012-10-17',
       Statement: [
@@ -44,7 +44,7 @@ export async function ensureBucketExists(bucketName: string): Promise<void> {
 }
 
 /**
- * Recursively uploads all files (playlists & segments) in a folder to MinIO
+ * Recursively uploads all files (playlists, segments, and images) in a folder to MinIO
  */
 export async function uploadFolderToMinio(
   bucketName: string,
@@ -63,12 +63,14 @@ export async function uploadFolderToMinio(
       await uploadFolderToMinio(bucketName, `${targetPrefix}/${file}`, fullPath);
     } else {
       const destinationKey = `${targetPrefix}/${file}`;
-      
+
       let contentType = 'application/octet-stream';
       if (file.endsWith('.m3u8')) {
         contentType = 'application/x-mpegURL';
       } else if (file.endsWith('.ts')) {
         contentType = 'video/MP2T';
+      } else if (file.endsWith('.jpg') || file.endsWith('.jpeg')) {
+        contentType = 'image/jpeg';
       }
 
       await storageClient.fPutObject(bucketName, destinationKey, fullPath, {

@@ -22,6 +22,41 @@ const createMasterPlaylist = async (outputDir: string): Promise<string> => {
   return masterPath.replace(/\\/g, '/');
 };
 
+/**
+ * Extracts a thumbnail image frame from the raw video file at 00:00:01
+ */
+export const extractThumbnail = async (inputPath: string, outputPath: string): Promise<string> => {
+  const cleanInputPath = path.resolve(inputPath).replace(/\\/g, '/');
+  const cleanOutputPath = path.resolve(outputPath).replace(/\\/g, '/');
+
+  const args = [
+    '-y',
+    '-ss', '00:00:01',
+    '-i', cleanInputPath,
+    '-vframes', '1',
+    '-q:v', '2',
+    cleanOutputPath,
+  ];
+
+  return new Promise((resolve, reject) => {
+    const ffmpeg = spawn(ffmpegBinaryPath, args);
+
+    ffmpeg.stderr.on('data', (data) => {
+      console.log(`[FFmpeg Thumbnail]: ${data.toString()}`);
+    });
+
+    ffmpeg.on('close', (code) => {
+      if (code === 0) {
+        resolve(cleanOutputPath);
+      } else {
+        reject(new Error(`FFmpeg thumbnail extraction failed with exit code ${code}`));
+      }
+    });
+
+    ffmpeg.on('error', (err) => reject(err));
+  });
+};
+
 export const transcodeToHLS = async (inputPath: string, outputDir: string): Promise<string> => {
   // 1. Ensure subdirectories exist
   await fs.ensureDir(path.join(outputDir, '0'));
@@ -30,7 +65,7 @@ export const transcodeToHLS = async (inputPath: string, outputDir: string): Prom
   // 2. Format paths for Windows FFmpeg execution
   const cleanOutputDir = outputDir.replace(/\\/g, '/');
   const cleanInputPath = path.resolve(inputPath).replace(/\\/g, '/');
-  
+
   const hlsSegmentPath = `${cleanOutputDir}/%v/segment_%03d.ts`;
   const hlsManifestPath = `${cleanOutputDir}/%v/manifest.m3u8`;
 
@@ -93,7 +128,7 @@ export const transcodeToHLS = async (inputPath: string, outputDir: string): Prom
     '-ar',
     '48000',
 
-    // HLS Options (Removed -master_pl_name to prevent FFmpeg Windows crash)
+    // HLS Options
     '-f',
     'hls',
     '-hls_time',

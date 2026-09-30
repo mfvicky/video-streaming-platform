@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { uploadCreatorVideo, getVideoStreamUrl } from '../api/creator.api';
+import { uploadCreatorVideo, getVideoStreamUrl, getVideoThumbnailUrl } from '../api/creator.api';
 
 // Mutation hook for handling video upload
 export const useUploadVideo = () => {
@@ -21,6 +21,16 @@ export const useVideoStream = (videoId: string, enabled: boolean = true) => {
       }
       return 5000;
     },
+    retry: false,
+  });
+};
+
+// Query hook for fetching thumbnail URL
+export const useVideoThumbnail = (videoId: string, enabled: boolean = true) => {
+  return useQuery({
+    queryKey: ['videoThumbnail', videoId],
+    queryFn: () => getVideoThumbnailUrl(videoId),
+    enabled: Boolean(videoId) && enabled,
     retry: false,
   });
 };

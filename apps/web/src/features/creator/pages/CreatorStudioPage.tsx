@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { Navbar } from '../../../components/layout/Navbar';
 import { VideoUploader } from '../components/VideoUploader';
 import { HlsPlayer } from '../components/HlsPlayer';
-import { getVideoStreamUrl } from '../api/creator.api';
+import { getVideoStreamUrl, getVideoThumbnailUrl } from '../api/creator.api';
 
 export const CreatorStudioPage: React.FC = () => {
   const [activeVideoId, setActiveVideoId] = useState<string>('');
   const [streamUrl, setStreamUrl] = useState<string>('');
+  const [thumbnailUrl, setThumbnailUrl] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const handleUploadSuccess = (videoId: string) => {
     setActiveVideoId(videoId);
@@ -14,13 +16,30 @@ export const CreatorStudioPage: React.FC = () => {
 
   const handleLoadStream = async () => {
     if (!activeVideoId) return;
+
+    setIsLoading(true);
+    setStreamUrl('');
+    setThumbnailUrl('');
+
     try {
-      const res = await getVideoStreamUrl(activeVideoId);
-      if (res.success) {
-        setStreamUrl(res.streamUrl);
+      const [streamRes, thumbnailRes] = await Promise.allSettled([
+        getVideoStreamUrl(activeVideoId),
+        getVideoThumbnailUrl(activeVideoId),
+      ]);
+
+      if (streamRes.status === 'fulfilled' && streamRes.value?.success) {
+        setStreamUrl(streamRes.value.streamUrl);
+      } else {
+        alert('Video is still processing. Please try again in a few seconds.');
+      }
+
+      if (thumbnailRes.status === 'fulfilled' && thumbnailRes.value?.thumbnailUrl) {
+        setThumbnailUrl(thumbnailRes.value.thumbnailUrl);
       }
     } catch {
-      alert('Video is still processing. Please try again in a few seconds.');
+      alert('Error fetching video resources.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -62,14 +81,15 @@ export const CreatorStudioPage: React.FC = () => {
               />
               <button
                 onClick={handleLoadStream}
-                className="bg-red-600 hover:bg-red-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-lg shadow-red-600/20 transition-all text-sm shrink-0"
+                disabled={isLoading}
+                className="bg-red-600 hover:bg-red-700 disabled:bg-slate-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-lg shadow-red-600/20 transition-all text-sm shrink-0"
               >
-                Load Stream
+                {isLoading ? 'Loading...' : 'Load Stream'}
               </button>
             </div>
 
             {streamUrl ? (
-              <HlsPlayer src={streamUrl} />
+              <HlsPlayer src={streamUrl} poster={thumbnailUrl} />
             ) : (
               <div className="w-full aspect-video bg-slate-950 border border-slate-800/80 rounded-xl flex flex-col items-center justify-center gap-3 text-slate-500">
                 <svg className="w-10 h-10 stroke-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">

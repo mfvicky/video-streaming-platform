@@ -11,7 +11,8 @@ export const minioClient = new Minio.Client({
 
 // Auto-initialize required buckets and set public policies
 export const initBuckets = async () => {
-  const buckets = ['videos', 'thumbnails'];
+  // const buckets = ['videos', 'thumbnails'];
+  const buckets = ['videos'];
 
   for (const bucket of buckets) {
     try {

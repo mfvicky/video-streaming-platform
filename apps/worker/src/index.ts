@@ -4,7 +4,7 @@ import os from 'os';
 import fs from 'fs-extra';
 import { prisma } from '@app/db';
 import { storageClient, uploadFolderToMinio } from './lib/storage';
-import { transcodeToHLS } from './services/ffmpeg.service';
+import { transcodeToHLS, extractThumbnail } from './services/ffmpeg.service';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import { consumeQueue } from './lib/rabbitmq';
 
@@ -27,6 +27,7 @@ async function startWorker() {
     const tempDir = path.join(os.tmpdir(), 'video_worker', videoId);
     const rawFilePath = path.join(tempDir, 'source_video.mp4');
     const hlsOutputDir = path.join(tempDir, 'hls');
+    const thumbnailFilePath = path.join(tempDir, 'thumbnail.jpg');
 
     try {
       // 1. Mark status as PROCESSING
@@ -42,18 +43,32 @@ async function startWorker() {
       console.log(`Downloading ${rawPath} to local temp path...`);
       await storageClient.fGetObject('videos', rawPath, rawFilePath);
 
-      // 3. Perform HLS Transcoding (Awaited)
+      // 3. Extract Thumbnail frame from input video
+      console.log(`Extracting thumbnail for ${videoId}...`);
+      await extractThumbnail(rawFilePath, thumbnailFilePath);
+
+      // 4. Perform HLS Transcoding (Awaited)
       console.log(`Transcoding ${videoId} to HLS...`);
       await transcodeToHLS(rawFilePath, hlsOutputDir);
 
-      // 4. Upload generated .m3u8 playlists & .ts chunks to MinIO
+      // 5. Upload generated thumbnail frame to MinIO
+      const thumbnailMinioKey = `thumbnails/${videoId}/thumbnail.jpg`;
+      console.log(`Uploading thumbnail for ${videoId}...`);
+      await storageClient.fPutObject('videos', thumbnailMinioKey, thumbnailFilePath, {
+        'Content-Type': 'image/jpeg',
+      });
+
+      // 6. Upload generated .m3u8 playlists & .ts chunks to MinIO
       console.log(`Uploading HLS files for ${videoId}...`);
       await uploadFolderToMinio('videos', `hls/${videoId}`, hlsOutputDir);
 
-      // 5. Update status in PostgreSQL to READY
+      // 7. Update status in PostgreSQL to READY with thumbnailPath
       await prisma.video.update({
         where: { id: videoId },
-        data: { status: 'READY' },
+        data: {
+          status: 'READY',
+          thumbnailPath: thumbnailMinioKey,
+        },
       });
 
       console.log(`HLS Generation completed for ${videoId}`);

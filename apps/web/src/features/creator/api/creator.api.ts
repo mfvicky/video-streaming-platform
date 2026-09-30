@@ -10,3 +10,8 @@ export const getVideoStreamUrl = async (videoId: string) => {
   const response = await apiClient.get(`/video/stream/${videoId}`);
   return response.data;
 };
+
+export const getVideoThumbnailUrl = async (videoId: string) => {
+  const response = await apiClient.get(`/video/thumbnail/${videoId}`);
+  return response.data;
+};

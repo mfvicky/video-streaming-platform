@@ -18,7 +18,7 @@ export class VideoService {
         id: videoId,
         title,
         creatorId,
-        status: 'PROCESSING',
+        status: 'PENDING',
         rawPath: rawObjectPath,
       },
     });
@@ -38,6 +38,22 @@ export class VideoService {
     return await storageClient.presignedGetObject(
       'videos',
       `hls/${videoId}/master.m3u8`,
+      24 * 60 * 60
+    );
+  }
+
+  async getThumbnailUrl(videoId: string) {
+    const video = await prisma.video.findUnique({
+      where: { id: videoId },
+    });
+
+    if (!video || !video.thumbnailPath) {
+      return null;
+    }
+
+    return await storageClient.presignedGetObject(
+      'videos',
+      video.thumbnailPath,
       24 * 60 * 60
     );
   }
