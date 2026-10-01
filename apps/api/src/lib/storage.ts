@@ -42,3 +42,14 @@ export const initBuckets = async () => {
     }
   }
 };
+
+/**
+ * Generate a presigned URL for downloading/viewing assets from MinIO
+ */
+export const getPresignedDownloadUrl = async (
+  bucketName: string,
+  objectName: string,
+  expirySeconds: number = 3600
+): Promise<string> => {
+  return await minioClient.presignedGetObject(bucketName, objectName, expirySeconds);
+};

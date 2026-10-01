@@ -18,19 +18,23 @@ export const HlsPlayer: React.FC<HlsPlayerProps> = ({ src, poster }) => {
 
   const [levels, setLevels] = useState<QualityLevel[]>([]);
   const [currentLevel, setCurrentLevel] = useState<number>(-1); // -1 is Auto
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  
+  // Track whether the video has started playback at least once
+  const [hasStartedPlaying, setHasStartedPlaying] = useState<boolean>(false);
   const [posterError, setPosterError] = useState<boolean>(false);
 
   useEffect(() => {
     // Reset play and error state when stream or poster source changes
-    setIsPlaying(false);
+    setHasStartedPlaying(false);
     setPosterError(false);
 
     const video = videoRef.current;
     if (!video || !src) return;
 
     if (Hls.isSupported()) {
-      const hls = new Hls();
+      const hls = new Hls({
+        enableWorker: true,
+      });
       hlsRef.current = hls;
 
       hls.loadSource(src);
@@ -59,7 +63,7 @@ export const HlsPlayer: React.FC<HlsPlayerProps> = ({ src, poster }) => {
     const video = videoRef.current;
     if (!video) return;
 
-    setIsPlaying(true);
+    setHasStartedPlaying(true);
     video.play().catch((err) => console.error('Playback trigger error:', err));
   };
 
@@ -70,27 +74,29 @@ export const HlsPlayer: React.FC<HlsPlayerProps> = ({ src, poster }) => {
   };
 
   const hasValidPoster = Boolean(poster) && !posterError;
+  // Show custom overlay only before initial playback has started
+  const showCustomOverlay = !hasStartedPlaying && hasValidPoster;
 
   return (
     <div className="w-full max-w-3xl rounded-xl overflow-hidden bg-black shadow-lg flex flex-col">
       <div className="relative w-full aspect-video group">
         <video
           ref={videoRef}
-          controls={isPlaying || !hasValidPoster}
+          controls={!showCustomOverlay}
           poster={hasValidPoster ? poster : undefined}
-          onPlay={() => setIsPlaying(true)}
-          onPause={() => setIsPlaying(false)}
+          onPlay={() => setHasStartedPlaying(true)}
+          onClick={(e) => e.stopPropagation()}
           className="w-full h-full object-contain bg-black"
         />
 
-        {/* Custom Interactive Poster Overlay (Only shown if poster exists and is valid) */}
-        {!isPlaying && hasValidPoster && (
+        {/* Custom Interactive Poster Overlay (Only shown prior to initial playback) */}
+        {showCustomOverlay && (
           <div
             onClick={handleStartPlay}
             className="absolute inset-0 bg-cover bg-center flex items-center justify-center cursor-pointer transition-all duration-300 group-hover:brightness-90"
             style={{ backgroundImage: `url(${poster})` }}
           >
-            {/* Invisible img tag used solely to detect image 404/loading errors */}
+            {/* Hidden image element to detect broken poster URLs */}
             <img
               src={poster}
               alt=""
@@ -118,6 +124,7 @@ export const HlsPlayer: React.FC<HlsPlayerProps> = ({ src, poster }) => {
           <span className="font-medium text-neutral-400">Quality:</span>
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={() => handleQualityChange(-1)}
               className={`px-3 py-1 rounded-md text-xs font-semibold transition ${
                 currentLevel === -1
@@ -129,6 +136,7 @@ export const HlsPlayer: React.FC<HlsPlayerProps> = ({ src, poster }) => {
             </button>
             {levels.map((lvl) => (
               <button
+                type="button"
                 key={lvl.id}
                 onClick={() => handleQualityChange(lvl.id)}
                 className={`px-3 py-1 rounded-md text-xs font-semibold transition ${

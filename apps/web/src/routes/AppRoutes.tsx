@@ -5,9 +5,36 @@ import { LoginPage } from '../features/auth/pages/LoginPage';
 import { RegisterPage } from '../features/auth/pages/RegisterPage';
 import { CreatorStudioPage } from '../features/creator/pages/CreatorStudioPage';
 
-const ProtectedLayout = () => {
+interface ProtectedLayoutProps {
+  allowedRoles?: string[];
+}
+
+const ProtectedLayout: React.FC<ProtectedLayoutProps> = ({ allowedRoles }) => {
   const token = localStorage.getItem('accessToken');
-  return token ? <Outlet /> : <Navigate to="/login" replace />;
+  const userRaw = localStorage.getItem('user');
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // If specific roles are required, validate user object and role
+  if (allowedRoles && allowedRoles.length > 0) {
+    if (!userRaw) {
+      return <Navigate to="/login" replace />;
+    }
+
+    try {
+      const user = JSON.parse(userRaw);
+      if (!user.role || !allowedRoles.includes(user.role)) {
+        // Redirect unauthorized users to home page
+        return <Navigate to="/" replace />;
+      }
+    } catch {
+      return <Navigate to="/login" replace />;
+    }
+  }
+
+  return <Outlet />;
 };
 
 export const AppRoutes: React.FC = () => {
@@ -18,8 +45,8 @@ export const AppRoutes: React.FC = () => {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
 
-      {/* Protected Creator Routes */}
-      <Route element={<ProtectedLayout />}>
+      {/* Protected Creator Routes: Allow 'CREATOR' and 'ADMIN' */}
+      <Route element={<ProtectedLayout allowedRoles={['CREATOR', 'ADMIN']} />}>
         <Route path="/creator" element={<CreatorStudioPage />} />
       </Route>
 

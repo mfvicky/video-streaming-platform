@@ -1,21 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from '../../../components/layout/Navbar';
 import { VideoUploader } from '../components/VideoUploader';
 import { HlsPlayer } from '../components/HlsPlayer';
+import { VideoList } from '../components/VideoList';
 import { getVideoStreamUrl, getVideoThumbnailUrl } from '../api/creator.api';
+import { Footer } from '../../../components/layout/Footer';
 
 export const CreatorStudioPage: React.FC = () => {
   const [activeVideoId, setActiveVideoId] = useState<string>('');
   const [streamUrl, setStreamUrl] = useState<string>('');
   const [thumbnailUrl, setThumbnailUrl] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [refreshKey, setRefreshKey] = useState<number>(0);
+  const [creatorId, setCreatorId] = useState<string>('');
 
-  const handleUploadSuccess = (videoId: string) => {
-    setActiveVideoId(videoId);
-  };
+  // Extract user details from localStorage
+  useEffect(() => {
+    try {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        // Use user ID (or fallback to sub) from stored JSON object
+        setCreatorId(parsedUser.id || parsedUser._id || parsedUser.sub || '');
+      }
+    } catch (error) {
+      console.error('Failed to parse user from localStorage:', error);
+    }
+  }, []);
 
-  const handleLoadStream = async () => {
-    if (!activeVideoId) return;
+  const loadStreamForId = async (videoId: string) => {
+    if (!videoId) return;
 
     setIsLoading(true);
     setStreamUrl('');
@@ -23,8 +37,8 @@ export const CreatorStudioPage: React.FC = () => {
 
     try {
       const [streamRes, thumbnailRes] = await Promise.allSettled([
-        getVideoStreamUrl(activeVideoId),
-        getVideoThumbnailUrl(activeVideoId),
+        getVideoStreamUrl(videoId),
+        getVideoThumbnailUrl(videoId),
       ]);
 
       if (streamRes.status === 'fulfilled' && streamRes.value?.success) {
@@ -41,6 +55,16 @@ export const CreatorStudioPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleUploadSuccess = (videoId: string) => {
+    setActiveVideoId(videoId);
+    setRefreshKey((prev) => prev + 1);
+  };
+
+  const handleSelectVideo = (videoId: string) => {
+    setActiveVideoId(videoId);
+    loadStreamForId(videoId);
   };
 
   return (
@@ -68,7 +92,7 @@ export const CreatorStudioPage: React.FC = () => {
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
             <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
               <h3 className="text-lg font-bold text-white tracking-wide">Preview HLS Stream</h3>
-              <span className="text-xs font-mono text-slate-500">hls.js engine</span>
+              <span className="text-xs font-mono text-slate-500">HLS engine</span>
             </div>
 
             <div className="flex gap-3">
@@ -80,7 +104,7 @@ export const CreatorStudioPage: React.FC = () => {
                 className="flex-1 bg-slate-950 border border-slate-800 focus:border-red-600 focus:ring-1 focus:ring-red-600 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 outline-none transition-all font-mono"
               />
               <button
-                onClick={handleLoadStream}
+                onClick={() => loadStreamForId(activeVideoId)}
                 disabled={isLoading}
                 className="bg-red-600 hover:bg-red-700 disabled:bg-slate-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-lg shadow-red-600/20 transition-all text-sm shrink-0"
               >
@@ -101,7 +125,22 @@ export const CreatorStudioPage: React.FC = () => {
             )}
           </div>
         </div>
+
+        {/* Render VideoList once creatorId is loaded from localStorage */}
+        {creatorId ? (
+          <VideoList
+            creatorId={creatorId}
+            onSelectVideo={handleSelectVideo}
+            selectedVideoId={activeVideoId}
+            refreshKey={refreshKey}
+          />
+        ) : (
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-center text-slate-500 text-sm">
+            Unable to load creator profile from local storage. Please log in again.
+          </div>
+        )}
       </main>
+      <Footer/>
     </div>
   );
 };
