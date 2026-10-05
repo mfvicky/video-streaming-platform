@@ -16,7 +16,7 @@ export const Footer: React.FC = () => {
         <div className="flex items-center gap-6 text-xs text-slate-400">
           <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
           <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
-          <a href="#" className="hover:text-white transition-colors">API Documentation</a>
+          <a href="http://localhost:3000/docs/" target="_blank" className="hover:text-white transition-colors">API Documentation</a>
         </div>
 
         <p className="text-xs text-slate-600">

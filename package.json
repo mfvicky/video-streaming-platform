@@ -16,6 +16,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test:api": "pnpm --filter api test",
+    "test:web": "pnpm --filter web test",
+    "test:worker": "pnpm --filter worker test",
     "test:services": "pnpm --filter api exec tsx test-services.ts",
     "prepare": "husky",
     "dev:web": "pnpm --filter web dev",
