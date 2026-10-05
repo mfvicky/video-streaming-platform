@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Navbar } from '../../../components/layout/Navbar';
 import { VideoUploader } from '../components/VideoUploader';
 import { HlsPlayer } from '../components/HlsPlayer';
@@ -12,21 +12,20 @@ export const CreatorStudioPage: React.FC = () => {
   const [thumbnailUrl, setThumbnailUrl] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [refreshKey, setRefreshKey] = useState<number>(0);
-  const [creatorId, setCreatorId] = useState<string>('');
 
-  // Extract user details from localStorage
-  useEffect(() => {
+  // Initialize creatorId synchronously on first render
+  const [creatorId] = useState<string>(() => {
     try {
       const storedUser = localStorage.getItem('user');
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser);
-        // Use user ID (or fallback to sub) from stored JSON object
-        setCreatorId(parsedUser.id || parsedUser._id || parsedUser.sub || '');
+        return parsedUser.id || parsedUser._id || parsedUser.sub || '';
       }
     } catch (error) {
       console.error('Failed to parse user from localStorage:', error);
     }
-  }, []);
+    return '';
+  });
 
   const loadStreamForId = async (videoId: string) => {
     if (!videoId) return;
@@ -140,7 +139,7 @@ export const CreatorStudioPage: React.FC = () => {
           </div>
         )}
       </main>
-      <Footer/>
+      <Footer />
     </div>
   );
 };

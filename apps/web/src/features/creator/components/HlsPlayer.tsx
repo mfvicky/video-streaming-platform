@@ -18,16 +18,23 @@ export const HlsPlayer: React.FC<HlsPlayerProps> = ({ src, poster }) => {
 
   const [levels, setLevels] = useState<QualityLevel[]>([]);
   const [currentLevel, setCurrentLevel] = useState<number>(-1); // -1 is Auto
-  
-  // Track whether the video has started playback at least once
+
+  // Track the previous source to reset state when stream or poster changes
+  const [prevSrc, setPrevSrc] = useState<string>(src);
+  const [prevPoster, setPrevPoster] = useState<string | undefined>(poster);
+
   const [hasStartedPlaying, setHasStartedPlaying] = useState<boolean>(false);
   const [posterError, setPosterError] = useState<boolean>(false);
 
-  useEffect(() => {
-    // Reset play and error state when stream or poster source changes
+  // Derive resets during render if props changed
+  if (src !== prevSrc || poster !== prevPoster) {
+    setPrevSrc(src);
+    setPrevPoster(poster);
     setHasStartedPlaying(false);
     setPosterError(false);
+  }
 
+  useEffect(() => {
     const video = videoRef.current;
     if (!video || !src) return;
 

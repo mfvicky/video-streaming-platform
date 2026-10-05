@@ -1,32 +1,39 @@
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { AxiosError } from 'axios';
 import { authApi } from '../api/auth.api';
-import type { LoginInput, RegisterInput } from '@app/shared';
+import type { LoginInput, RegisterInput, AuthResponse } from '@app/shared';
+
+// Top-level API envelope structure returned by your backend
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+}
 
 export const useLogin = () => {
   const navigate = useNavigate();
 
-  return useMutation({
-    mutationFn: (data: LoginInput) => authApi.login(data),
-    onSuccess: (response: any) => {
+  return useMutation<ApiResponse<AuthResponse>, AxiosError<{ message?: string }>, LoginInput>({
+    mutationFn: (data: LoginInput) =>
+      authApi.login(data) as unknown as Promise<ApiResponse<AuthResponse>>,
+    onSuccess: (response) => {
       console.log('Login successful, received access token:', response);
-      const token = response?.data?.accessToken
+      const token = response.data.accessToken;
       localStorage.setItem('accessToken', token);
-      // json stringfy user object
-      localStorage.setItem('user', JSON.stringify(response?.data?.user));
+      localStorage.setItem('user', JSON.stringify(response.data.user));
       toast.success('Welcome back to StreamVerse!');
-      // response.data contains user information role 'CREATOR' url must be /creator
+
       if (response.data.user.role === 'CREATOR') {
         navigate('/creator');
       } else {
         navigate('/');
       }
     },
-    onError: (error: any) => {
+    onError: (error) => {
       const message = error.response?.data?.message || 'Invalid login credentials';
       toast.error(message);
-      console.log(error)
+      console.log(error);
     },
   });
 };
@@ -34,13 +41,13 @@ export const useLogin = () => {
 export const useRegister = () => {
   const navigate = useNavigate();
 
-  return useMutation({
+  return useMutation<unknown, AxiosError<{ message?: string }>, RegisterInput>({
     mutationFn: (data: RegisterInput) => authApi.register(data),
     onSuccess: () => {
       toast.success('Account created successfully! Please sign in.');
       navigate('/login');
     },
-    onError: (error: any) => {
+    onError: (error) => {
       const message = error.response?.data?.message || 'Registration failed';
       toast.error(message);
     },

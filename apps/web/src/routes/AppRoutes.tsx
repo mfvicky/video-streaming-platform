@@ -23,14 +23,25 @@ const ProtectedLayout: React.FC<ProtectedLayoutProps> = ({ allowedRoles }) => {
       return <Navigate to="/login" replace />;
     }
 
+    let isAuthorized = false;
+    let isParseError = false;
+
     try {
       const user = JSON.parse(userRaw);
-      if (!user.role || !allowedRoles.includes(user.role)) {
-        // Redirect unauthorized users to home page
-        return <Navigate to="/" replace />;
+      if (user?.role && allowedRoles.includes(user.role)) {
+        isAuthorized = true;
       }
     } catch {
+      isParseError = true;
+    }
+
+    if (isParseError) {
       return <Navigate to="/login" replace />;
+    }
+
+    if (!isAuthorized) {
+      // Redirect unauthorized users to home page
+      return <Navigate to="/" replace />;
     }
   }
 

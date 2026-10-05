@@ -15,7 +15,6 @@ interface VideoListProps {
 }
 
 export const VideoList: React.FC<VideoListProps> = ({
-  creatorId,
   onSelectVideo,
   selectedVideoId,
   refreshKey,
@@ -26,8 +25,6 @@ export const VideoList: React.FC<VideoListProps> = ({
   const [deletingVideoIds, setDeletingVideoIds] = useState<Set<string>>(new Set());
 
   const fetchVideos = useCallback(async () => {
-    // if (!creatorId) return;
-
     try {
       const data = await getMyVideos();
       setVideos(data || []);
@@ -37,11 +34,35 @@ export const VideoList: React.FC<VideoListProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [creatorId]);
+  }, []);
 
   useEffect(() => {
-    fetchVideos();
-  }, [fetchVideos, refreshKey]);
+    let isMounted = true;
+
+    const loadData = async () => {
+      try {
+        const data = await getMyVideos();
+        if (isMounted) {
+          setVideos(data || []);
+        }
+      } catch (error) {
+        if (isMounted) {
+          console.error('Failed to fetch creator videos:', error);
+          toast.error('Failed to load video list');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [refreshKey]);
 
   useEffect(() => {
     const hasPendingVideos = videos.some(
