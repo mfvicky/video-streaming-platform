@@ -4,6 +4,8 @@ import { HomePage } from '../features/home/pages/HomePage';
 import { LoginPage } from '../features/auth/pages/LoginPage';
 import { RegisterPage } from '../features/auth/pages/RegisterPage';
 import { CreatorStudioPage } from '../features/creator/pages/CreatorStudioPage';
+import { PrivacyPolicyPage } from '../features/home/pages/PrivacyPolicyPage';
+import { TermsOfServicePage } from '../features/home/pages/TermsOfServicePage';
 
 interface ProtectedLayoutProps {
   allowedRoles?: string[];
@@ -55,7 +57,8 @@ export const AppRoutes: React.FC = () => {
       <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
-
+      <Route path="/privacy" element={<PrivacyPolicyPage />} />
+      <Route path="/terms" element={<TermsOfServicePage />} />
       {/* Protected Creator Routes: Allow 'CREATOR' and 'ADMIN' */}
       <Route element={<ProtectedLayout allowedRoles={['CREATOR', 'ADMIN']} />}>
         <Route path="/creator" element={<CreatorStudioPage />} />
