@@ -1,54 +1,78 @@
-import express, { Express, Request, Response } from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import path from 'path';
-import { setupSwagger } from './config/swagger';
+import app from './app';
+import { env } from './config/env';
+import { logger } from './lib/logger';
+import { prisma, checkDatabaseConnection } from './lib/prisma';
+import { redis } from './lib/redis';
+import { connectRabbitMQ, closeRabbitMQ } from './lib/rabbitmq';
+import { initBuckets } from './lib/storage'; 
 
-// Load environment variables
-dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
-dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+async function bootstrap() {
+  try {
+    // 1. MUST AWAIT Database Ping first
+    await checkDatabaseConnection();
 
-console.log('Environment Variables Loaded:', process.env.PORT, process.env.CORS_ORIGIN);
+    // 2. Connect RabbitMQ
+    await connectRabbitMQ();
 
-const app: Express = express();
-const PORT = process.env.PORT || 3000;
+    // 3. Initialize MinIO Buckets (Ensures 'videos' & 'thumbnails' exist)
+    await initBuckets();
+    logger.info('MinIO buckets initialized successfully.');
 
-// Middleware
-app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
-app.use(express.json());
+    // 4. Start HTTP Server
+    const server = app.listen(env.PORT, () => {
+      logger.info(`Server running on http://localhost:${env.PORT} in ${env.NODE_ENV} mode`);
+    });
 
-// Setup Swagger UI
-setupSwagger(app);
+    // 5. Graceful Shutdown Function
+    let isShuttingDown = false;
 
-// Root endpoint
-/**
- * @openapi
- * /:
- *   get:
- *     summary: root url test
- *     responses:
- *       200:
- *         description: Returns plain text confirmation that API is working or not
- */
-app.get('/', (_req: Request, res: Response) => {
-  res.send('Hello, root URL API is working....');
-});
+    const gracefulShutdown = async (signal: string) => {
+      if (isShuttingDown) return;
+      isShuttingDown = true;
 
-// API V1 endpoint
-/**
- * @openapi
- * /api/v1:
- *   get:
- *     summary: API v1 test
- *     responses:
- *       200:
- *         description: Returns JSON object confirming API v1 operational status.
- */
-app.get('/api/v1', (_req: Request, res: Response) => {
-  res.json({ message: 'Hello v1! API is working smoothly.' });
-});
+      logger.info(`Received ${signal}. Starting graceful shutdown...`);
 
-// Start Server
-app.listen(PORT, () => {
-  console.log(`API Server running on http://localhost:${PORT}`);
-});
+      // Close HTTP server to stop accepting new requests
+      server.close(async () => {
+        logger.info('HTTP server closed.');
+
+        try {
+          // Disconnect database & infrastructure clients
+          await prisma.$disconnect();
+          logger.info('Prisma disconnected.');
+
+          await redis.quit();
+          logger.info('Redis disconnected.');
+
+          await closeRabbitMQ();
+          logger.info('RabbitMQ connection closed.');
+
+          logger.info('Graceful shutdown completed. Exiting.');
+          
+          // Give Pino stream time to flush before exiting
+          setTimeout(() => process.exit(0), 100);
+        } catch (err) {
+          logger.error({ err }, 'Error during graceful shutdown');
+          process.exit(1);
+        }
+      });
+    };
+
+    // Register Process Listeners for Windows & Unix
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+
+    // Handle standard Windows exit event
+    process.on('message', (msg) => {
+      if (msg === 'shutdown') {
+        gracefulShutdown('SIGTERM');
+      }
+    });
+
+  } catch (error) {
+    logger.error({ error }, 'Failed to start application server');
+    process.exit(1);
+  }
+}
+
+bootstrap();
