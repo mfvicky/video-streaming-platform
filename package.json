@@ -1,0 +1,53 @@
+{
+  "name": "video-streaming-platform",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "esbuild",
+      "@scarf/scarf"
+    ]
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test:api": "pnpm --filter api test",
+    "test:web": "pnpm --filter web test",
+    "test:worker": "pnpm --filter worker test",
+    "test:services": "pnpm --filter api exec tsx test-services.ts",
+    "prepare": "husky",
+    "dev:web": "pnpm --filter web dev",
+    "dev:api": "pnpm --filter api dev",
+    "dev:api:once": "pnpm --filter api dev:once",
+    "dev:worker": "pnpm --filter worker dev",
+    "db:migrate": "pnpm --filter @app/db exec prisma migrate dev",
+    "db:generate": "pnpm --filter @app/db exec prisma generate",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "lint-staged": {
+    "*.{js,ts,jsx,tsx}": [
+      "eslint --fix"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ]
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "dotenv": "^18.0.0",
+    "eslint": "^10.10.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.5.1",
+    "prettier": "^3.9.8",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
+  }
+}
