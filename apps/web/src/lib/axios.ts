@@ -11,7 +11,6 @@ apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('accessToken');
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
-    console.log('Attached JWT to request headers', config.headers);
   }
   
   // Attach unique Request ID for log tracing

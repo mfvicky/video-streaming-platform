@@ -11,7 +11,6 @@ export const VideoCard: React.FC<VideoCardProps> = ({ video, onSelect }) => {
 
   const showThumbnail = Boolean(video.thumbnailUrl) && !imgError;
 
-  console.log(video, 'video');
   return (
     <div
       onClick={() => onSelect(video.id)}

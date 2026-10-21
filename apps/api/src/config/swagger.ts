@@ -1,7 +1,7 @@
 import { Express } from 'express';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
-import { env } from './env';
+import { env } from './env.js';
 
 const PORT = env.PORT;
 

@@ -1,6 +1,6 @@
 import * as amqp from 'amqplib';
-import { env } from '../config/env';
-import { logger } from './logger';
+import { env } from '../config/env.js';
+import { logger } from './logger.js';
 
 let connection: amqp.ChannelModel | null = null;
 let channel: amqp.Channel | null = null;
@@ -8,6 +8,8 @@ let channel: amqp.Channel | null = null;
 export async function connectRabbitMQ(): Promise<void> {
   try {
     connection = await amqp.connect(env.RABBITMQ_URL);
+    connection.on('close', () => { connection = null; channel = null; });
+    connection.on('error', (error) => logger.error({ error }, 'RabbitMQ connection error'));
     channel = await connection.createChannel();
 
     if (!channel) {
@@ -18,6 +20,7 @@ export async function connectRabbitMQ(): Promise<void> {
     logger.info(`Connected to RabbitMQ queue: ${env.QUEUE_NAME}`);
   } catch (error) {
     logger.error({ error }, 'Failed to connect to RabbitMQ');
+    throw error;
   }
 }
 

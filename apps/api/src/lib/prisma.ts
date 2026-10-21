@@ -1,5 +1,5 @@
 import { PrismaClient } from '@app/db';
-import { logger } from './logger';
+import { logger } from './logger.js';
 
 export const prisma = new PrismaClient();
 
@@ -10,6 +10,6 @@ export async function checkDatabaseConnection(): Promise<boolean> {
     return true;
   } catch (error) {
     logger.error({ error }, 'Failed to connect to PostgreSQL');
-    return false;
+    throw error;
   }
 }

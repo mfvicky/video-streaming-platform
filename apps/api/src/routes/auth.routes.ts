@@ -1,8 +1,9 @@
+import { z } from 'zod';
 import { Router } from 'express';
 import { registerSchema, loginSchema } from '@app/shared';
-import { AuthController } from '../controllers/auth.controller';
-import { validate } from '../middlewares/validate.middleware';
-import { authRateLimiter } from '../middlewares/rateLimiter.middleware';
+import { AuthController } from '../controllers/auth.controller.js';
+import { validate } from '../middlewares/validate.middleware.js';
+import { authRateLimiter } from '../middlewares/rateLimiter.middleware.js';
 
 const router = Router();
 
@@ -31,7 +32,7 @@ const router = Router();
 router.post(
   '/register',
   authRateLimiter,
-  validate(registerSchema),
+  validate(registerSchema.pick({ email: true, name: true, role: true }).extend({ password: z.string().min(1) })),
   AuthController.register
 );
 

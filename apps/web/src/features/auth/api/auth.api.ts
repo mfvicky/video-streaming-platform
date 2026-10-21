@@ -8,7 +8,6 @@ export const authApi = {
       ...credentials,
       password: encryptPassword(credentials.password),
     };
-    console.log(payload)
     const response = await apiClient.post<AuthResponse>('/auth/login', payload);
     return response.data;
   },

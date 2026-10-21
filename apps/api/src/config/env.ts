@@ -29,7 +29,7 @@ const envSchema = z.object({
   // Object Storage
   MINIO_ENDPOINT: z.string().default('localhost'),
   MINIO_PORT: z.string().default('9000').transform(Number),
-  MINIO_USE_SSL: z.string().transform((val) => val === 'true'),
+  MINIO_USE_SSL: z.string().default('false').transform((val) => val === 'true'),
   MINIO_ACCESS_KEY: z.string().min(1),
   MINIO_SECRET_KEY: z.string().min(1),
   MINIO_BUCKET_NAME: z.string().default('video-uploads'),
@@ -37,7 +37,7 @@ const envSchema = z.object({
   // Logging & Security
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('debug'),
   RATE_LIMIT_WINDOW_MS: z.string().default('900000').transform(Number),
-  RATE_LIMIT_MAX_REQUESTS: z.string().default('5').transform(Number),
+  RATE_LIMIT_MAX_REQUESTS: z.string().default('300').transform(Number),
 });
 
 export const env = envSchema.parse(process.env);

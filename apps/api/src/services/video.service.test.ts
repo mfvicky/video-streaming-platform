@@ -12,6 +12,7 @@ vi.mock('../lib/prisma', () => ({
 vi.mock('../lib/storage', () => ({
   minioClient: {
     putObject: vi.fn(),
+    fPutObject: vi.fn(),
     presignedGetObject: vi.fn(),
     removeObject: vi.fn(),
     removeObjects: vi.fn(),
@@ -42,12 +43,12 @@ describe('VideoService Unit Tests', () => {
       const title = 'Test Video Title';
       const mockFile = {
         originalname: 'sample.mp4',
-        buffer: Buffer.from('dummy-video-content'),
+        path: '/tmp/day1-test-upload.tmp',
         size: 1024,
         mimetype: 'video/mp4',
       } as Express.Multer.File;
 
-      vi.mocked(storageClient.putObject).mockResolvedValue({ etag: 'etag123', versionId: null });
+      vi.mocked(storageClient.fPutObject).mockResolvedValue({ etag: 'etag123', versionId: null });
       prismaMock.video.create.mockImplementation(async (args) => ({
         id: args.data.id,
         title: args.data.title,
@@ -62,11 +63,10 @@ describe('VideoService Unit Tests', () => {
 
       const result = await instance.uploadAndEnqueueVideo(creatorId, title, mockFile);
 
-      expect(storageClient.putObject).toHaveBeenCalledWith(
+      expect(storageClient.fPutObject).toHaveBeenCalledWith(
         'videos',
-        expect.stringMatching(new RegExp(`^raw/${creatorId}/vid_.*_sample\\.mp4$`)),
-        mockFile.buffer,
-        mockFile.size,
+        expect.stringMatching(new RegExp(`^raw/${creatorId}/vid_.*\\.mp4$`)),
+        mockFile.path,
         { 'Content-Type': 'video/mp4' }
       );
 
@@ -76,7 +76,7 @@ describe('VideoService Unit Tests', () => {
           title,
           creatorId,
           status: 'PENDING',
-          rawPath: expect.stringMatching(new RegExp(`^raw/${creatorId}/vid_.*_sample\\.mp4$`)),
+          rawPath: expect.stringMatching(new RegExp(`^raw/${creatorId}/vid_.*\\.mp4$`)),
         },
       });
 

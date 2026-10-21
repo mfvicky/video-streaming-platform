@@ -1,7 +1,7 @@
 
 import pino from 'pino';
 import path from 'path';
-import { env } from '../config/env';
+import { env } from '../config/env.js';
 
 // Determine log directory (e.g., apps/api/logs/app.log)
 // const logFilePath = path.join(process.cwd(), 'logs', 'app.log');

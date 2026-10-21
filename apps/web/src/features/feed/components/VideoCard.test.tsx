@@ -43,7 +43,7 @@ describe('VideoCard Component', () => {
   });
 
   it('renders fallback UI when thumbnailUrl is not provided', () => {
-    const videoWithoutThumbnail = { ...mockVideo, thumbnailUrl: undefined };
+    const videoWithoutThumbnail = { ...mockVideo, thumbnailUrl: null };
     render(<VideoCard video={videoWithoutThumbnail} onSelect={mockOnSelect} />);
 
     expect(screen.queryByRole('img')).not.toBeInTheDocument();

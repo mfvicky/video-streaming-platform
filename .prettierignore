@@ -1,19 +1,33 @@
-# Build outputs and dependencies
+# Dependencies and compiled output
 node_modules
+**/node_modules
 dist
+**/dist
 build
+**/build
 .next
 .turbo
+coverage
+.vitest
 
-# Prisma generated client
+# Machine-generated files / data
+pnpm-lock.yaml
 packages/db/prisma/migrations
 packages/db/src/generated
-
-# Environment & logs
-*.env
-*.env.*
+uploads
+temp
+tmp
+hls
 *.log
-pnpm-lock.yaml
+*.log.*
 
-# Public static assets
-public
+# Secrets and local environment
+.env
+.env.*
+**/.env
+**/.env.*
+
+# Local dashboard / media assets
+*.mp4
+*.m3u8
+*.tsbuildinfo

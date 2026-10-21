@@ -12,7 +12,15 @@ interface QualityLevel {
   bitrate: number;
 }
 
-export const HlsPlayer: React.FC<HlsPlayerProps> = ({ src, poster }) => {
+export const HlsPlayer: React.FC<HlsPlayerProps> = ({ src, poster }) => (
+  <HlsPlayerContent
+    key={JSON.stringify([src, poster])}
+    src={src}
+    poster={poster}
+  />
+);
+
+const HlsPlayerContent: React.FC<HlsPlayerProps> = ({ src, poster }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
 
@@ -20,19 +28,18 @@ export const HlsPlayer: React.FC<HlsPlayerProps> = ({ src, poster }) => {
   const [currentLevel, setCurrentLevel] = useState<number>(-1); // -1 is Auto
 
   // Track the previous source to reset state when stream or poster changes
-  const [prevSrc, setPrevSrc] = useState<string>(src);
-  const [prevPoster, setPrevPoster] = useState<string | undefined>(poster);
+  const [playbackError, setPlaybackError] = useState<string>('');
 
   const [hasStartedPlaying, setHasStartedPlaying] = useState<boolean>(false);
   const [posterError, setPosterError] = useState<boolean>(false);
 
-  // Derive resets during render if props changed
-  if (src !== prevSrc || poster !== prevPoster) {
-    setPrevSrc(src);
-    setPrevPoster(poster);
-    setHasStartedPlaying(false);
-    setPosterError(false);
-  }
+  // useEffect(() => {
+  //   setHasStartedPlaying(false);
+  //   setPosterError(false);
+  //   setPlaybackError('');
+  //   setLevels([]);
+  //   setCurrentLevel(-1);
+  // }, [src, poster]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -47,12 +54,19 @@ export const HlsPlayer: React.FC<HlsPlayerProps> = ({ src, poster }) => {
       hls.loadSource(src);
       hls.attachMedia(video);
 
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (data.fatal)
+          setPlaybackError('Unable to load video stream. Please try again.');
+      });
+
       hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
-        const availableLevels: QualityLevel[] = data.levels.map((level, index) => ({
-          id: index,
-          height: level.height,
-          bitrate: level.bitrate,
-        }));
+        const availableLevels: QualityLevel[] = data.levels.map(
+          (level, index) => ({
+            id: index,
+            height: level.height,
+            bitrate: level.bitrate,
+          }),
+        );
 
         setLevels(availableLevels);
       });
@@ -92,6 +106,9 @@ export const HlsPlayer: React.FC<HlsPlayerProps> = ({ src, poster }) => {
           controls={!showCustomOverlay}
           poster={hasValidPoster ? poster : undefined}
           onPlay={() => setHasStartedPlaying(true)}
+          onError={() =>
+            setPlaybackError('Video playback failed. Please try another video.')
+          }
           onClick={(e) => e.stopPropagation()}
           className="w-full h-full object-contain bg-black"
         />
@@ -117,7 +134,10 @@ export const HlsPlayer: React.FC<HlsPlayerProps> = ({ src, poster }) => {
               className="relative z-10 w-16 h-16 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center shadow-2xl transition-transform duration-300 group-hover:scale-110"
               aria-label="Play Video"
             >
-              <svg className="w-8 h-8 fill-current translate-x-0.5" viewBox="0 0 24 24">
+              <svg
+                className="w-8 h-8 fill-current translate-x-0.5"
+                viewBox="0 0 24 24"
+              >
                 <path d="M8 5v14l11-7z" />
               </svg>
             </button>
@@ -125,6 +145,11 @@ export const HlsPlayer: React.FC<HlsPlayerProps> = ({ src, poster }) => {
         )}
       </div>
 
+      {playbackError && (
+        <p role="alert" className="px-4 py-2 text-red-300">
+          {playbackError}
+        </p>
+      )}
       {/* Quality Switcher Bar */}
       {levels.length > 0 && (
         <div className="flex items-center justify-between px-4 py-2 bg-neutral-900 text-white text-sm">

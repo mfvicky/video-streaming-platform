@@ -18,7 +18,6 @@ export const useLogin = () => {
     mutationFn: (data: LoginInput) =>
       authApi.login(data) as unknown as Promise<ApiResponse<AuthResponse>>,
     onSuccess: (response) => {
-      console.log('Login successful, received access token:', response);
       const token = response.data.accessToken;
       localStorage.setItem('accessToken', token);
       localStorage.setItem('user', JSON.stringify(response.data.user));

@@ -5,14 +5,14 @@ import fs from 'fs-extra';
 import { prisma } from '@app/db';
 import { storageClient, uploadFolderToMinio } from './lib/storage';
 import { transcodeToHLS, extractThumbnail } from './services/ffmpeg.service';
-import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
+
 import { consumeQueue } from './lib/rabbitmq';
+import { env } from './config/env.config';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-const ffmpegExecutablePath = ffmpegInstaller.path || (ffmpegInstaller as any).default?.path;
-console.log('FFmpeg binary location:', ffmpegExecutablePath);
+
 
 interface VideoProcessingPayload {
   videoId: string;
@@ -24,7 +24,7 @@ async function startWorker() {
 
   await consumeQueue<VideoProcessingPayload>(async (payload, msg, channel) => {
     const { videoId, rawPath } = payload;
-    const tempDir = path.join(os.tmpdir(), 'video_worker', videoId);
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'video-worker-')); // unique per job
     const rawFilePath = path.join(tempDir, 'source_video.mp4');
     const hlsOutputDir = path.join(tempDir, 'hls');
     const thumbnailFilePath = path.join(tempDir, 'thumbnail.jpg');
@@ -41,7 +41,7 @@ async function startWorker() {
 
       // 2. Download raw file from MinIO
       console.log(`Downloading ${rawPath} to local temp path...`);
-      await storageClient.fGetObject('videos', rawPath, rawFilePath);
+      await storageClient.fGetObject(env.MINIO_BUCKET_NAME, rawPath, rawFilePath);
 
       // 3. Extract Thumbnail frame from input video
       console.log(`Extracting thumbnail for ${videoId}...`);
@@ -54,13 +54,13 @@ async function startWorker() {
       // 5. Upload generated thumbnail frame to MinIO
       const thumbnailMinioKey = `thumbnails/${videoId}/thumbnail.jpg`;
       console.log(`Uploading thumbnail for ${videoId}...`);
-      await storageClient.fPutObject('videos', thumbnailMinioKey, thumbnailFilePath, {
+      await storageClient.fPutObject(env.MINIO_BUCKET_NAME, thumbnailMinioKey, thumbnailFilePath, {
         'Content-Type': 'image/jpeg',
       });
 
       // 6. Upload generated .m3u8 playlists & .ts chunks to MinIO
       console.log(`Uploading HLS files for ${videoId}...`);
-      await uploadFolderToMinio('videos', `hls/${videoId}`, hlsOutputDir);
+      await uploadFolderToMinio(env.MINIO_BUCKET_NAME, `hls/${videoId}`, hlsOutputDir);
 
       // 7. Update status in PostgreSQL to READY with thumbnailPath
       await prisma.video.update({

@@ -1,14 +1,17 @@
-import { minioClient as storageClient } from '../lib/storage';
-import { publishToQueue } from '../lib/rabbitmq';
-import { prisma } from '../lib/prisma';
+import { minioClient as storageClient } from '../lib/storage.js';
+import { publishToQueue } from '../lib/rabbitmq.js';
+import { prisma } from '../lib/prisma.js';
+import { env } from '../config/env.js';
+import path from 'node:path';
 
 export class VideoService {
   async uploadAndEnqueueVideo(creatorId: string, title: string, file: Express.Multer.File) {
     const videoId = `vid_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const rawObjectPath = `raw/${creatorId}/${videoId}_${file.originalname}`;
+    const extension = path.extname(file.originalname).toLowerCase().replace(/[^a-z0-9.]/g, '').slice(0, 12);
+    const rawObjectPath = `raw/${creatorId}/${videoId}${extension}`;
 
     // 1. Upload raw file to MinIO 'videos' bucket
-    await storageClient.putObject('videos', rawObjectPath, file.buffer, file.size, {
+    await storageClient.fPutObject(env.MINIO_BUCKET_NAME, rawObjectPath, file.path, {
       'Content-Type': file.mimetype,
     });
 
@@ -24,7 +27,7 @@ export class VideoService {
     });
 
     // 3. Publish job to RabbitMQ queue
-    await publishToQueue('video_processing_queue', {
+    await publishToQueue(env.QUEUE_NAME, {
       videoId,
       creatorId,
       rawPath: rawObjectPath,
@@ -36,7 +39,7 @@ export class VideoService {
   async getHlsStreamUrl(videoId: string) {
     // Generate a 24-hour presigned URL for master playlist
     return await storageClient.presignedGetObject(
-      'videos',
+      env.MINIO_BUCKET_NAME,
       `hls/${videoId}/master.m3u8`,
       24 * 60 * 60
     );
@@ -52,7 +55,7 @@ export class VideoService {
     }
 
     return await storageClient.presignedGetObject(
-      'videos',
+      env.MINIO_BUCKET_NAME,
       video.thumbnailPath,
       24 * 60 * 60
     );
@@ -101,7 +104,7 @@ export class VideoService {
     });
 
     // 3. Re-publish processing job to RabbitMQ queue
-    await publishToQueue('video_processing_queue', {
+    await publishToQueue(env.QUEUE_NAME, {
       videoId: video.id,
       creatorId: video.creatorId,
       rawPath: video.rawPath,
@@ -124,7 +127,7 @@ export class VideoService {
       throw new Error('Unauthorized: You can only delete your own videos');
     }
 
-    const bucketName = 'videos';
+    const bucketName = env.MINIO_BUCKET_NAME;
 
     // 2. Remove raw file from MinIO if present
     if (video.rawPath) {

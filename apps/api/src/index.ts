@@ -1,10 +1,10 @@
-import app from './app';
-import { env } from './config/env';
-import { logger } from './lib/logger';
-import { prisma, checkDatabaseConnection } from './lib/prisma';
-import { redis } from './lib/redis';
-import { connectRabbitMQ, closeRabbitMQ } from './lib/rabbitmq';
-import { initBuckets } from './lib/storage'; 
+import app from './app.js';
+import { env } from './config/env.js';
+import { logger } from './lib/logger.js';
+import { prisma, checkDatabaseConnection } from './lib/prisma.js';
+import { redis } from './lib/redis.js';
+import { connectRabbitMQ, closeRabbitMQ } from './lib/rabbitmq.js';
+import { initBuckets } from './lib/storage.js'; 
 
 async function bootstrap() {
   try {

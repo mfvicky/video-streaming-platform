@@ -2,12 +2,12 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import { env } from './config/env';
-import { setupSwagger } from './config/swagger';
-import { globalRateLimiter } from './middlewares/rateLimiter.middleware';
-import { errorHandler } from './middlewares/error.middleware';
-import authRoutes from './routes/auth.routes';
-import videoRoutes from './routes/video.routes';
+import { env } from './config/env.js';
+import { setupSwagger } from './config/swagger.js';
+import { globalRateLimiter } from './middlewares/rateLimiter.middleware.js';
+import { errorHandler } from './middlewares/error.middleware.js';
+import authRoutes from './routes/auth.routes.js';
+import videoRoutes from './routes/video.routes.js';
 
 
 const app = express();

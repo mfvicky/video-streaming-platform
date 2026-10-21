@@ -89,7 +89,7 @@ describe('HlsPlayer Component', () => {
     render(<HlsPlayer src={mockSrc} />);
 
     const onCallback = mockHlsInstance.on.mock.calls.find(
-      (call: [string, HlsEventCallback]) => call[0] === Hls.Events.MANIFEST_PARSED
+      (call) => call[0] === Hls.Events.MANIFEST_PARSED
     )?.[1] as HlsEventCallback | undefined;
 
     expect(onCallback).toBeDefined();

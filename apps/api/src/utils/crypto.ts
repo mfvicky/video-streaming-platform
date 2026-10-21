@@ -1,5 +1,5 @@
 import forge from 'node-forge';
-import { env } from '../config/env';
+import { env } from '../config/env.js';
 
 export const decryptPassword = (encryptedPassword: string): string => {
   try {

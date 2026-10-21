@@ -1,10 +1,10 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@app/db';
-import { RegisterInput, LoginInput, UserRole } from '@app/shared';
-import { redis } from '../lib/redis';
-import { env } from '../config/env';
-import { decryptPassword } from '../utils/crypto';
+import { RegisterInput, LoginInput, UserRole, registerSchema } from '@app/shared';
+import { redis } from '../lib/redis.js';
+import { env } from '../config/env.js';
+import { decryptPassword } from '../utils/crypto.js';
 
 const prisma = new PrismaClient();
 
@@ -16,6 +16,7 @@ const REFRESH_TOKEN_EXPIRY_DAYS = 7;
 
 export class AuthService {
   static async register(input: RegisterInput) {
+    if (input.role === 'ADMIN') throw new Error('Admin registration is not permitted');
     const existingUser = await prisma.user.findUnique({
       where: { email: input.email },
     });
@@ -26,6 +27,7 @@ export class AuthService {
 
     // Decrypt the RSA-encrypted password from frontend payload
     const plainTextPassword = decryptPassword(input.password);
+    registerSchema.shape.password.parse(plainTextPassword); // validate the decrypted password
     const hashedPassword = await bcrypt.hash(plainTextPassword, 12);
 
     const user = await prisma.user.create({

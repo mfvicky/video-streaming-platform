@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { uploadVideoMiddleware } from '../middlewares/upload.middleware';
+import { uploadVideoMiddleware } from '../middlewares/upload.middleware.js';
 import { 
   uploadVideoController, 
   getStreamUrlController, 
@@ -7,9 +7,11 @@ import {
   getVideoFeed, 
   getCreatorVideosController,
   retryVideoProcessingController,
-  deleteVideoController
-} from '../controllers/video.controller';
-import { authenticateJWT } from '../middlewares/auth.middleware';
+  deleteVideoController,
+  getHlsAssetController,
+  getThumbnailAssetController
+} from '../controllers/video.controller.js';
+import { authenticateJWT } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
@@ -138,7 +140,9 @@ router.post('/upload', authenticateJWT, uploadVideoMiddleware.single('video'), u
  *       404:
  *         description: Video not found or HLS stream unavailable
  */
-router.get('/stream/:videoId', authenticateJWT, getStreamUrlController);
+router.get('/stream/:videoId', getStreamUrlController);
+router.get('/hls/:videoId/*asset', getHlsAssetController);
+router.get('/image/:videoId', getThumbnailAssetController);
 
 /**
  * @openapi
@@ -167,7 +171,7 @@ router.get('/stream/:videoId', authenticateJWT, getStreamUrlController);
  *       404:
  *         description: Thumbnail not found
  */
-router.get('/thumbnail/:videoId', authenticateJWT, getThumbnailUrlController);
+router.get('/thumbnail/:videoId', getThumbnailUrlController);
 
 /**
  * @openapi

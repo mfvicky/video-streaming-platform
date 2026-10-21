@@ -16,11 +16,6 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({ onSuccess }) => {
 
     setIsUploading(true);
     const formData = new FormData();
-    // fetch json stringfy object and add user here
-    const user = JSON.parse(localStorage.getItem('user'));
-    if (user) {
-      formData.append('creatorId', user.id);
-    }
     formData.append('video', file);
     formData.append('title', title);
 
