@@ -1,4 +1,4 @@
-import React, { type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider, type Query } from '@tanstack/react-query';
 import { describe, it, expect, vi, beforeEach } from 'vitest';

@@ -21,6 +21,7 @@
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
+    "generate": "prisma generate",
     "db:studio": "prisma studio"
   },
   "keywords": [],

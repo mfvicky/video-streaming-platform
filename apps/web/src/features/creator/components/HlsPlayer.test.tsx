@@ -85,12 +85,21 @@ describe('HlsPlayer Component', () => {
     expect(playButton).not.toBeInTheDocument();
   });
 
+  // it('populates and switches quality levels when MANIFEST_PARSED event fires', async () => {
+  //   render(<HlsPlayer src={mockSrc} />);
+
+  //   const onCallback = mockHlsInstance.on.mock.calls.find(
+  //     (call: [string, HlsEventCallback]) => call[0] === Hls.Events.MANIFEST_PARSED
+  //   )?.[1] as HlsEventCallback | undefined;
+
+  //   expect(onCallback).toBeDefined();
   it('populates and switches quality levels when MANIFEST_PARSED event fires', async () => {
     render(<HlsPlayer src={mockSrc} />);
 
-    const onCallback = mockHlsInstance.on.mock.calls.find(
-      (call: [string, HlsEventCallback]) => call[0] === Hls.Events.MANIFEST_PARSED
-    )?.[1] as HlsEventCallback | undefined;
+    const calls = mockHlsInstance.on.mock.calls as Array<[string, HlsEventCallback]>;
+    const onCallback = calls.find(
+      (call) => call[0] === Hls.Events.MANIFEST_PARSED
+    )?.[1];
 
     expect(onCallback).toBeDefined();
 

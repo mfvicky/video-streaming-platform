@@ -132,17 +132,27 @@ services:
       minio:
         condition: service_healthy
 
+  # web:
+  #   build:
+  #     context: .
+  #     dockerfile: apps/web/Dockerfile
+  #   container_name: dev_web
+  #   restart: unless-stopped
+  #   ports:
+  #     - "${WEB_PORT:-3001}:3000"
+  #   environment:
+  #     NODE_ENV: development
+  #     NEXT_PUBLIC_API_URL: "http://localhost:${API_PORT}"
+  #   depends_on:
+  #     - api
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-    container_name: dev_web
-    restart: unless-stopped
+      args:
+        VITE_API_URL: http://localhost:5000/api/v1
     ports:
-      - "${WEB_PORT:-3001}:3000"
-    environment:
-      NODE_ENV: development
-      NEXT_PUBLIC_API_URL: "http://localhost:${API_PORT}"
+      - "3000:80"
     depends_on:
       - api
 

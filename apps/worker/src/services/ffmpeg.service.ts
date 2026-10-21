@@ -143,6 +143,7 @@ export const transcodeToHLS = async (inputPath: string, outputDir: string): Prom
     // Variant Stream Mapping
     '-var_stream_map',
     'v:0,a:0 v:1,a:1',
+    // "-var_stream_map", "v:0,a:0? v:1,a:0?",
 
     hlsManifestPath,
   ];
