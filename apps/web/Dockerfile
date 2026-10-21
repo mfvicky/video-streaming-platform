@@ -39,6 +39,49 @@
 
 # CMD ["pnpm", "--filter", "web", "start"]
 
+# # Stage 1: Build Stage
+# FROM node:20-alpine AS builder
+
+# RUN corepack enable && corepack prepare pnpm@9.4.0 --activate
+
+# WORKDIR /app
+
+# # 1. Copy root configurations and all workspace package manifests first
+# COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc* ./
+# COPY packages/shared/package.json ./packages/shared/
+# COPY packages/db/package.json ./packages/db/
+# COPY apps/web/package.json ./apps/web/
+
+# # 2. Install dependencies safely across the whole workspace
+# RUN pnpm install --frozen-lockfile
+
+# # 3. Now copy the rest of the source code files
+# COPY packages/shared ./packages/shared
+# COPY packages/db ./packages/db
+# COPY apps/web ./apps/web
+
+# # 4. Build the shared library first
+# RUN pnpm --filter @app/shared run build
+
+# # 5. Pass build-time environment variables for Vite
+# ARG VITE_API_URL
+# ENV VITE_API_URL=$VITE_API_URL
+
+# # 6. Build the Vite application
+# RUN pnpm --filter web build
+
+# # Stage 2: Serving Stage (Nginx)
+# FROM nginx:alpine AS runner
+
+# COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
+# COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
+
+# EXPOSE 80
+
+# CMD ["nginx", "-g", "daemon off;"]
+
+
+
 # Stage 1: Build Stage
 FROM node:20-alpine AS builder
 
@@ -55,12 +98,12 @@ COPY apps/web/package.json ./apps/web/
 # 2. Install dependencies safely across the whole workspace
 RUN pnpm install --frozen-lockfile
 
-# 3. Now copy the rest of the source code files
+# 3. Now copy the rest of the source code files for all workspace packages
 COPY packages/shared ./packages/shared
 COPY packages/db ./packages/db
 COPY apps/web ./apps/web
 
-# 4. Build the shared library first
+# 4. Build the shared library first (if required by web or db)
 RUN pnpm --filter @app/shared run build
 
 # 5. Pass build-time environment variables for Vite

@@ -99,7 +99,56 @@
 # CMD ["node", "apps/api/dist/index.js"]
 
 
+# # Stage 1: Build Stage
+# FROM node:20-alpine AS builder
+
+# RUN apk add --no-cache openssl
+# RUN corepack enable && corepack prepare pnpm@9.4.0 --activate
+
+# WORKDIR /app
+
+# # Copy monorepo manifests
+# COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc* ./
+# COPY packages/shared/package.json ./packages/shared/
+# COPY packages/db/package.json ./packages/db/
+# COPY apps/api/package.json ./apps/api/
+
+# # Install all dependencies
+# RUN pnpm install --frozen-lockfile
+
+# # Copy source code (Make sure COPY is here!)
+# COPY packages/shared ./packages/shared
+# COPY packages/db ./packages/db
+# COPY apps/api ./apps/api
+
+# # Generate Prisma Client & Build workspace packages
+# RUN pnpm --filter @app/db run db:generate
+# RUN pnpm --filter @app/shared run build
+# RUN pnpm --filter api run build
+
+# # Stage 2: Runtime Stage
+# FROM node:20-alpine AS runner
+# RUN apk add --no-cache openssl
+# WORKDIR /app
+
+# COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+# COPY apps/api/package.json ./apps/api/
+
+# RUN corepack enable && corepack prepare pnpm@9.4.0 --activate
+# # RUN pnpm install --prod --frozen-lockfile --ignore-scripts
+# # RUN pnpm install --prod --frozen-lockfile
+
+# COPY --from=builder /app/apps/api/dist ./apps/api/dist
+# # COPY --from=builder /app/node_modules/.pnpm /app/node_modules/.pnpm
+# COPY --from=builder /app/node_modules /app/node_modules
+# COPY --from=builder /app/packages /app/packages
+
+# EXPOSE 4000
+# CMD ["node", "apps/api/dist/index.js"]
+
+# ==========================================
 # Stage 1: Build Stage
+# ==========================================
 FROM node:20-alpine AS builder
 
 RUN apk add --no-cache openssl
@@ -107,41 +156,50 @@ RUN corepack enable && corepack prepare pnpm@9.4.0 --activate
 
 WORKDIR /app
 
-# Copy monorepo manifests
+# Copy root monorepo manifests
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc* ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/db/package.json ./packages/db/
 COPY apps/api/package.json ./apps/api/
 
-# Install all dependencies
+# Install all workspace dependencies
 RUN pnpm install --frozen-lockfile
 
-# Copy source code (Make sure COPY is here!)
+# Copy all source files
 COPY packages/shared ./packages/shared
 COPY packages/db ./packages/db
 COPY apps/api ./apps/api
 
-# Generate Prisma Client & Build workspace packages
+# Generate Prisma, build shared packages, and compile API
 RUN pnpm --filter @app/db run db:generate
 RUN pnpm --filter @app/shared run build
 RUN pnpm --filter api run build
 
-# Stage 2: Runtime Stage
+# ==========================================
+# Stage 2: Production Runtime Stage
+# ==========================================
 FROM node:20-alpine AS runner
+
 RUN apk add --no-cache openssl
+RUN corepack enable && corepack prepare pnpm@9.4.0 --activate
+
 WORKDIR /app
 
+# Copy root workspace configuration and lockfile
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/api/package.json ./apps/api/
+COPY packages/db/package.json ./packages/db/
+COPY packages/shared/package.json ./packages/shared/
 
-RUN corepack enable && corepack prepare pnpm@9.4.0 --activate
-# RUN pnpm install --prod --frozen-lockfile --ignore-scripts
-# RUN pnpm install --prod --frozen-lockfile
+# Install ONLY production dependencies and bypass lifecycle hooks (like husky)
+RUN pnpm install --prod --frozen-lockfile --ignore-scripts
 
+# Copy compiled dist for API and the built database package from builder
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
-# COPY --from=builder /app/node_modules/.pnpm /app/node_modules/.pnpm
-COPY --from=builder /app/node_modules /app/node_modules
-COPY --from=builder /app/packages /app/packages
+COPY --from=builder /app/packages/db ./packages/db
+COPY --from=builder /app/packages/shared ./packages/shared
+
+WORKDIR /app/apps/api
 
 EXPOSE 4000
-CMD ["node", "apps/api/dist/index.js"]
+CMD ["node", "dist/index.js"]

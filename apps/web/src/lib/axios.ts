@@ -2,7 +2,7 @@ import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 
 export const apiClient = axios.create({
-  baseURL: `${import.meta.env.VITE_API_URL}/v1`,
+  baseURL: `${import.meta.env.VITE_API_URL}/api/v1`,
   withCredentials: true,
 });
 
