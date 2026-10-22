@@ -19,7 +19,7 @@ describe('VideoCard Component', () => {
     render(
       <MemoryRouter>
         <VideoCard {...mockVideo} />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
 
     expect(screen.getByText('Sample Video')).toBeInTheDocument();

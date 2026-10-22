@@ -48,26 +48,36 @@ describe('VideoService Unit Tests', () => {
         mimetype: 'video/mp4',
       } as Express.Multer.File;
 
-      vi.mocked(storageClient.fPutObject).mockResolvedValue({ etag: 'etag123', versionId: null });
-      prismaMock.video.create.mockImplementation(async (args) => ({
-        id: args.data.id,
-        title: args.data.title,
-        status: args.data.status,
-        rawPath: args.data.rawPath,
-        creatorId: args.data.creatorId,
-        thumbnailPath: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }) as never);
+      vi.mocked(storageClient.fPutObject).mockResolvedValue({
+        etag: 'etag123',
+        versionId: null,
+      });
+      prismaMock.video.create.mockImplementation(
+        async (args) =>
+          ({
+            id: args.data.id,
+            title: args.data.title,
+            status: args.data.status,
+            rawPath: args.data.rawPath,
+            creatorId: args.data.creatorId,
+            thumbnailPath: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }) as never,
+      );
       vi.mocked(publishToQueue).mockResolvedValue(true as never);
 
-      const result = await instance.uploadAndEnqueueVideo(creatorId, title, mockFile);
+      const result = await instance.uploadAndEnqueueVideo(
+        creatorId,
+        title,
+        mockFile,
+      );
 
       expect(storageClient.fPutObject).toHaveBeenCalledWith(
         'videos',
         expect.stringMatching(new RegExp(`^raw/${creatorId}/vid_.*\\.mp4$`)),
         mockFile.path,
-        { 'Content-Type': 'video/mp4' }
+        { 'Content-Type': 'video/mp4' },
       );
 
       expect(prismaMock.video.create).toHaveBeenCalledWith({
@@ -76,7 +86,9 @@ describe('VideoService Unit Tests', () => {
           title,
           creatorId,
           status: 'PENDING',
-          rawPath: expect.stringMatching(new RegExp(`^raw/${creatorId}/vid_.*\\.mp4$`)),
+          rawPath: expect.stringMatching(
+            new RegExp(`^raw/${creatorId}/vid_.*\\.mp4$`),
+          ),
         },
       });
 
@@ -95,15 +107,18 @@ describe('VideoService Unit Tests', () => {
   describe('getHlsStreamUrl', () => {
     it('should return a presigned URL for master playlist with 24-hour expiration', async () => {
       const videoId = 'vid_12345';
-      const mockPresignedUrl = 'https://minio.local/videos/hls/vid_12345/master.m3u8?token=abc';
-      vi.mocked(storageClient.presignedGetObject).mockResolvedValue(mockPresignedUrl);
+      const mockPresignedUrl =
+        'https://minio.local/videos/hls/vid_12345/master.m3u8?token=abc';
+      vi.mocked(storageClient.presignedGetObject).mockResolvedValue(
+        mockPresignedUrl,
+      );
 
       const result = await instance.getHlsStreamUrl(videoId);
 
       expect(storageClient.presignedGetObject).toHaveBeenCalledWith(
         'videos',
         `hls/${videoId}/master.m3u8`,
-        86400
+        86400,
       );
       expect(result).toBe(mockPresignedUrl);
     });
@@ -113,18 +128,27 @@ describe('VideoService Unit Tests', () => {
     it('should return presigned URL when video and thumbnailPath exist', async () => {
       const videoId = 'vid_12345';
       const mockThumbnailPath = 'thumbnails/vid_12345.png';
-      const mockPresignedUrl = 'https://minio.local/videos/thumbnails/vid_12345.png?token=abc';
+      const mockPresignedUrl =
+        'https://minio.local/videos/thumbnails/vid_12345.png?token=abc';
 
       prismaMock.video.findUnique.mockResolvedValue({
         id: videoId,
         thumbnailPath: mockThumbnailPath,
       } as never);
-      vi.mocked(storageClient.presignedGetObject).mockResolvedValue(mockPresignedUrl);
+      vi.mocked(storageClient.presignedGetObject).mockResolvedValue(
+        mockPresignedUrl,
+      );
 
       const result = await instance.getThumbnailUrl(videoId);
 
-      expect(prismaMock.video.findUnique).toHaveBeenCalledWith({ where: { id: videoId } });
-      expect(storageClient.presignedGetObject).toHaveBeenCalledWith('videos', mockThumbnailPath, 86400);
+      expect(prismaMock.video.findUnique).toHaveBeenCalledWith({
+        where: { id: videoId },
+      });
+      expect(storageClient.presignedGetObject).toHaveBeenCalledWith(
+        'videos',
+        mockThumbnailPath,
+        86400,
+      );
       expect(result).toBe(mockPresignedUrl);
     });
 
@@ -203,7 +227,9 @@ describe('VideoService Unit Tests', () => {
 
       const result = await instance.retryVideoProcessing(videoId, creatorId);
 
-      expect(prismaMock.video.findUnique).toHaveBeenCalledWith({ where: { id: videoId } });
+      expect(prismaMock.video.findUnique).toHaveBeenCalledWith({
+        where: { id: videoId },
+      });
       expect(prismaMock.video.update).toHaveBeenCalledWith({
         where: { id: videoId },
         data: { status: 'PENDING' },
@@ -219,7 +245,9 @@ describe('VideoService Unit Tests', () => {
     it('should throw error if video does not exist', async () => {
       prismaMock.video.findUnique.mockResolvedValue(null);
 
-      await expect(instance.retryVideoProcessing('invalid_id', creatorId)).rejects.toThrow('Video not found');
+      await expect(
+        instance.retryVideoProcessing('invalid_id', creatorId),
+      ).rejects.toThrow('Video not found');
       expect(prismaMock.video.update).not.toHaveBeenCalled();
       expect(publishToQueue).not.toHaveBeenCalled();
     });
@@ -231,8 +259,10 @@ describe('VideoService Unit Tests', () => {
         rawPath,
       } as never);
 
-      await expect(instance.retryVideoProcessing(videoId, creatorId)).rejects.toThrow(
-        'Unauthorized: You can only retry processing for your own videos'
+      await expect(
+        instance.retryVideoProcessing(videoId, creatorId),
+      ).rejects.toThrow(
+        'Unauthorized: You can only retry processing for your own videos',
       );
       expect(prismaMock.video.update).not.toHaveBeenCalled();
     });
@@ -244,8 +274,10 @@ describe('VideoService Unit Tests', () => {
         rawPath: null,
       } as never);
 
-      await expect(instance.retryVideoProcessing(videoId, creatorId)).rejects.toThrow(
-        'Cannot retry processing: Raw video file path is missing'
+      await expect(
+        instance.retryVideoProcessing(videoId, creatorId),
+      ).rejects.toThrow(
+        'Cannot retry processing: Raw video file path is missing',
       );
       expect(prismaMock.video.update).not.toHaveBeenCalled();
     });
@@ -269,32 +301,59 @@ describe('VideoService Unit Tests', () => {
 
     it('should delete raw file, thumbnail, HLS folder, and DB record successfully', async () => {
       prismaMock.video.findUnique.mockResolvedValue(mockVideo as never);
-      vi.mocked(storageClient.removeObject).mockResolvedValue(undefined as never);
+      vi.mocked(storageClient.removeObject).mockResolvedValue(
+        undefined as never,
+      );
 
-      const hlsFiles = [{ name: 'hls/vid_del_123/master.m3u8' }, { name: 'hls/vid_del_123/720p.ts' }];
-      vi.mocked(storageClient.listObjectsV2).mockReturnValue(createAsyncIterable(hlsFiles) as never);
-      vi.mocked(storageClient.removeObjects).mockResolvedValue(undefined as never);
+      const hlsFiles = [
+        { name: 'hls/vid_del_123/master.m3u8' },
+        { name: 'hls/vid_del_123/720p.ts' },
+      ];
+      vi.mocked(storageClient.listObjectsV2).mockReturnValue(
+        createAsyncIterable(hlsFiles) as never,
+      );
+      vi.mocked(storageClient.removeObjects).mockResolvedValue(
+        undefined as never,
+      );
       prismaMock.video.delete.mockResolvedValue(mockVideo as never);
 
       const result = await instance.deleteVideo(videoId, creatorId);
 
-      expect(prismaMock.video.findUnique).toHaveBeenCalledWith({ where: { id: videoId } });
-      expect(storageClient.removeObject).toHaveBeenCalledWith('videos', mockVideo.rawPath);
-      expect(storageClient.removeObject).toHaveBeenCalledWith('videos', mockVideo.thumbnailPath);
-      expect(storageClient.listObjectsV2).toHaveBeenCalledWith('videos', `hls/${videoId}/`, true);
+      expect(prismaMock.video.findUnique).toHaveBeenCalledWith({
+        where: { id: videoId },
+      });
+      expect(storageClient.removeObject).toHaveBeenCalledWith(
+        'videos',
+        mockVideo.rawPath,
+      );
+      expect(storageClient.removeObject).toHaveBeenCalledWith(
+        'videos',
+        mockVideo.thumbnailPath,
+      );
+      expect(storageClient.listObjectsV2).toHaveBeenCalledWith(
+        'videos',
+        `hls/${videoId}/`,
+        true,
+      );
       expect(storageClient.removeObjects).toHaveBeenCalledWith('videos', [
         'hls/vid_del_123/master.m3u8',
         'hls/vid_del_123/720p.ts',
       ]);
-      expect(prismaMock.video.delete).toHaveBeenCalledWith({ where: { id: videoId } });
+      expect(prismaMock.video.delete).toHaveBeenCalledWith({
+        where: { id: videoId },
+      });
       expect(result).toEqual({ success: true });
     });
 
     it('should gracefully handle MinIO errors when deleting raw, thumbnail, or HLS objects', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
 
       prismaMock.video.findUnique.mockResolvedValue(mockVideo as never);
-      vi.mocked(storageClient.removeObject).mockRejectedValue(new Error('MinIO removal error'));
+      vi.mocked(storageClient.removeObject).mockRejectedValue(
+        new Error('MinIO removal error'),
+      );
       vi.mocked(storageClient.listObjectsV2).mockImplementation(() => {
         throw new Error('MinIO stream error');
       });
@@ -302,7 +361,9 @@ describe('VideoService Unit Tests', () => {
 
       const result = await instance.deleteVideo(videoId, creatorId);
 
-      expect(prismaMock.video.delete).toHaveBeenCalledWith({ where: { id: videoId } });
+      expect(prismaMock.video.delete).toHaveBeenCalledWith({
+        where: { id: videoId },
+      });
       expect(result).toEqual({ success: true });
       expect(consoleSpy).toHaveBeenCalled();
 
@@ -312,7 +373,9 @@ describe('VideoService Unit Tests', () => {
     it('should throw error if video does not exist during deletion', async () => {
       prismaMock.video.findUnique.mockResolvedValue(null);
 
-      await expect(instance.deleteVideo('invalid_id', creatorId)).rejects.toThrow('Video not found');
+      await expect(
+        instance.deleteVideo('invalid_id', creatorId),
+      ).rejects.toThrow('Video not found');
       expect(prismaMock.video.delete).not.toHaveBeenCalled();
     });
 
@@ -323,7 +386,7 @@ describe('VideoService Unit Tests', () => {
       } as never);
 
       await expect(instance.deleteVideo(videoId, creatorId)).rejects.toThrow(
-        'Unauthorized: You can only delete your own videos'
+        'Unauthorized: You can only delete your own videos',
       );
       expect(prismaMock.video.delete).not.toHaveBeenCalled();
     });

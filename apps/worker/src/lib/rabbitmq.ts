@@ -8,7 +8,10 @@ let channel: Channel | null = null;
 /**
  * Establishes connection to RabbitMQ broker and initializes a channel
  */
-export async function connectRabbitMQ(): Promise<{ connection: ChannelModel; channel: Channel }> {
+export async function connectRabbitMQ(): Promise<{
+  connection: ChannelModel;
+  channel: Channel;
+}> {
   try {
     if (connection && channel) {
       return { connection, channel };
@@ -44,7 +47,11 @@ export async function connectRabbitMQ(): Promise<{ connection: ChannelModel; cha
  * Reusable worker consumer method
  */
 export async function consumeQueue<T>(
-  onMessage: (payload: T, msg: ConsumeMessage, channel: Channel) => Promise<void>
+  onMessage: (
+    payload: T,
+    msg: ConsumeMessage,
+    channel: Channel,
+  ) => Promise<void>,
 ): Promise<void> {
   const { channel: ch } = await connectRabbitMQ();
 
@@ -57,10 +64,13 @@ export async function consumeQueue<T>(
         const payload: T = JSON.parse(msg.content.toString());
         await onMessage(payload, msg, ch);
       } catch (err) {
-        logger.error({ err }, '[RabbitMQ Worker] Error processing message payload');
+        logger.error(
+          { err },
+          '[RabbitMQ Worker] Error processing message payload',
+        );
       }
     },
-    { noAck: false }
+    { noAck: false },
   );
 }
 

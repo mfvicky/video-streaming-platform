@@ -61,24 +61,35 @@ describe('useAuth hooks', () => {
 
       vi.mocked(authApi.login).mockResolvedValueOnce(mockResponse as never);
 
-      const { result } = renderHook(() => useLogin(), { wrapper: createWrapper() });
+      const { result } = renderHook(() => useLogin(), {
+        wrapper: createWrapper(),
+      });
 
       act(() => {
-        result.current.mutate({ email: 'user@example.com', password: 'password123' });
+        result.current.mutate({
+          email: 'user@example.com',
+          password: 'password123',
+        });
       });
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
       expect(localStorage.getItem('accessToken')).toBe('mock-token');
-      expect(localStorage.getItem('user')).toBe(JSON.stringify(mockResponse.data.user));
+      expect(localStorage.getItem('user')).toBe(
+        JSON.stringify(mockResponse.data.user),
+      );
     });
   });
 
   describe('useRegister', () => {
     it('handles successful registration', async () => {
-      vi.mocked(authApi.register).mockResolvedValueOnce({ success: true } as never);
+      vi.mocked(authApi.register).mockResolvedValueOnce({
+        success: true,
+      } as never);
 
-      const { result } = renderHook(() => useRegister(), { wrapper: createWrapper() });
+      const { result } = renderHook(() => useRegister(), {
+        wrapper: createWrapper(),
+      });
 
       const payload = {
         email: 'newuser@example.com',

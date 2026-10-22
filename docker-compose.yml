@@ -6,20 +6,20 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    ports: ["${POSTGRES_PORT:-5433}:5432"]
+    ports: ['${POSTGRES_PORT:-5433}:5432']
     volumes: [postgres_data:/var/lib/postgresql/data]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
       interval: 5s
       timeout: 5s
       retries: 15
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    ports: ["${REDIS_PORT:-6379}:6379"]
+    ports: ['${REDIS_PORT:-6379}:6379']
     volumes: [redis_data:/data]
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       retries: 15
   rabbitmq:
@@ -29,11 +29,11 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
     ports:
-      - "${RABBITMQ_PORT:-5672}:5672"
-      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+      - '${RABBITMQ_PORT:-5672}:5672'
+      - '${RABBITMQ_MANAGEMENT_PORT:-15672}:15672'
     volumes: [rabbitmq_data:/var/lib/rabbitmq]
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
       interval: 10s
       retries: 15
   minio:
@@ -47,11 +47,11 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     ports:
-      - "${MINIO_API_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+      - '${MINIO_API_PORT:-9000}:9000'
+      - '${MINIO_CONSOLE_PORT:-9001}:9001'
     volumes: [minio_data:/data]
     healthcheck:
-      test: ["CMD", "silo", "healthcheck", "ready"]
+      test: ['CMD', 'silo', 'healthcheck', 'ready']
       interval: 10s
       retries: 15
   migrate:
@@ -60,32 +60,32 @@ services:
       dockerfile: apps/api/Dockerfile
       target: builder
     environment:
-      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public"
+      DATABASE_URL: 'postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public'
     command:
-      ["pnpm", "--filter", "@app/db", "exec", "prisma", "migrate", "deploy"]
+      ['pnpm', '--filter', '@app/db', 'exec', 'prisma', 'migrate', 'deploy']
     depends_on:
       postgres:
         condition: service_healthy
-    restart: "no"
+    restart: 'no'
   api:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
     restart: unless-stopped
-    ports: ["${API_PORT:-3000}:3000"]
+    ports: ['${API_PORT:-3000}:3000']
     environment:
       NODE_ENV: production
-      PORT: "3000"
+      PORT: '3000'
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3001}
-      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public"
+      DATABASE_URL: 'postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public'
       REDIS_URL: redis://redis:6379
       REDIS_HOST: redis
-      REDIS_PORT: "6379"
-      RABBITMQ_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672"
+      REDIS_PORT: '6379'
+      RABBITMQ_URL: 'amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672'
       QUEUE_NAME: video_processing_queue
       MINIO_ENDPOINT: minio
-      MINIO_PORT: "9000"
-      MINIO_USE_SSL: "false"
+      MINIO_PORT: '9000'
+      MINIO_USE_SSL: 'false'
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET_NAME: videos
@@ -112,14 +112,14 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public"
+      DATABASE_URL: 'postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public'
       REDIS_HOST: redis
-      REDIS_PORT: "6379"
-      RABBITMQ_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672"
+      REDIS_PORT: '6379'
+      RABBITMQ_URL: 'amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672'
       QUEUE_NAME: video_processing_queue
       MINIO_ENDPOINT: minio
-      MINIO_PORT: "9000"
-      MINIO_USE_SSL: "false"
+      MINIO_PORT: '9000'
+      MINIO_USE_SSL: 'false'
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET_NAME: videos
@@ -141,13 +141,13 @@ services:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:3000/api}
         VITE_RSA_PUBLIC_KEY: ${RSA_PUBLIC_KEY}
     restart: unless-stopped
-    ports: ["${WEB_PORT:-3001}:80"]
+    ports: ['${WEB_PORT:-3001}:80']
     depends_on: [api]
   adminer:
     image: adminer:latest
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8080:8080"
+      - '127.0.0.1:8080:8080'
     environment:
       ADMINER_DEFAULT_SERVER: postgres
 
@@ -155,7 +155,7 @@ services:
     image: redis/redisinsight:latest
     restart: unless-stopped
     ports:
-      - "127.0.0.1:5540:5540"
+      - '127.0.0.1:5540:5540'
     volumes:
       - redisinsight_data:/data
 volumes:

@@ -20,9 +20,17 @@ export const initBuckets = async () => {
     await minioClient.setBucketPolicy(bucket, '');
   } catch (err: unknown) {
     // A never-public bucket may have no policy to remove (S3 NoSuchBucketPolicy).
-    if (!err || typeof err !== 'object' || !('code' in err) || err.code !== 'NoSuchBucketPolicy') {
+    if (
+      !err ||
+      typeof err !== 'object' ||
+      !('code' in err) ||
+      err.code !== 'NoSuchBucketPolicy'
+    ) {
       throw err;
     }
   }
-  logger.info({ bucket }, 'Private MinIO bucket initialized; anonymous access disabled');
+  logger.info(
+    { bucket },
+    'Private MinIO bucket initialized; anonymous access disabled',
+  );
 };

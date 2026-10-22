@@ -28,7 +28,9 @@ vi.mock('../../../components/layout/Footer', () => ({
 vi.mock('../components/VideoUploader', () => ({
   VideoUploader: ({ onSuccess }: { onSuccess: (id: string) => void }) => (
     <div>
-      <button onClick={() => onSuccess('uploaded-vid-123')}>Mock Upload Success</button>
+      <button onClick={() => onSuccess('uploaded-vid-123')}>
+        Mock Upload Success
+      </button>
     </div>
   ),
 }));
@@ -45,7 +47,9 @@ vi.mock('../components/HlsPlayer', () => ({
 vi.mock('../components/VideoList', () => ({
   VideoList: ({ onSelectVideo }: { onSelectVideo: (id: string) => void }) => (
     <div>
-      <button onClick={() => onSelectVideo('selected-vid-456')}>Select Video</button>
+      <button onClick={() => onSelectVideo('selected-vid-456')}>
+        Select Video
+      </button>
     </div>
   ),
 }));
@@ -73,11 +77,11 @@ describe('CreatorStudioPage Component', () => {
 
     // Targeted query for the header element specifically
     expect(
-      screen.getByRole('heading', { name: /creator studio/i, level: 1 })
+      screen.getByRole('heading', { name: /creator studio/i, level: 1 }),
     ).toBeInTheDocument();
 
     expect(
-      screen.getByText(/Unable to load creator profile from local storage/i)
+      screen.getByText(/Unable to load creator profile from local storage/i),
     ).toBeInTheDocument();
   });
 
@@ -88,7 +92,7 @@ describe('CreatorStudioPage Component', () => {
 
     expect(screen.getByText('Select Video')).toBeInTheDocument();
     expect(
-      screen.queryByText(/Unable to load creator profile from local storage/i)
+      screen.queryByText(/Unable to load creator profile from local storage/i),
     ).not.toBeInTheDocument();
   });
 
@@ -104,8 +108,12 @@ describe('CreatorStudioPage Component', () => {
       thumbnailUrl: 'https://example.com/thumb.jpg',
     };
 
-    vi.spyOn(creatorApi, 'getVideoStreamUrl').mockResolvedValueOnce(mockStreamResponse);
-    vi.spyOn(creatorApi, 'getVideoThumbnailUrl').mockResolvedValueOnce(mockThumbnailResponse);
+    vi.spyOn(creatorApi, 'getVideoStreamUrl').mockResolvedValueOnce(
+      mockStreamResponse,
+    );
+    vi.spyOn(creatorApi, 'getVideoThumbnailUrl').mockResolvedValueOnce(
+      mockThumbnailResponse,
+    );
 
     render(<CreatorStudioPage />);
 
@@ -119,8 +127,12 @@ describe('CreatorStudioPage Component', () => {
       expect(screen.getByTestId('hls-player')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('Stream: https://example.com/stream.m3u8')).toBeInTheDocument();
-    expect(screen.getByText('Poster: https://example.com/thumb.jpg')).toBeInTheDocument();
+    expect(
+      screen.getByText('Stream: https://example.com/stream.m3u8'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Poster: https://example.com/thumb.jpg'),
+    ).toBeInTheDocument();
   });
 
   it('displays alert if video stream processing is not successful', async () => {
@@ -134,8 +146,12 @@ describe('CreatorStudioPage Component', () => {
       thumbnailUrl: '',
     };
 
-    vi.spyOn(creatorApi, 'getVideoStreamUrl').mockResolvedValueOnce(mockStreamResponse);
-    vi.spyOn(creatorApi, 'getVideoThumbnailUrl').mockResolvedValueOnce(mockThumbnailResponse);
+    vi.spyOn(creatorApi, 'getVideoStreamUrl').mockResolvedValueOnce(
+      mockStreamResponse,
+    );
+    vi.spyOn(creatorApi, 'getVideoThumbnailUrl').mockResolvedValueOnce(
+      mockThumbnailResponse,
+    );
 
     render(<CreatorStudioPage />);
 
@@ -147,7 +163,7 @@ describe('CreatorStudioPage Component', () => {
 
     await waitFor(() => {
       expect(window.alert).toHaveBeenCalledWith(
-        'Video is still processing. Please try again in a few seconds.'
+        'Video is still processing. Please try again in a few seconds.',
       );
     });
   });
@@ -164,8 +180,12 @@ describe('CreatorStudioPage Component', () => {
       thumbnailUrl: 'https://example.com/selected-thumb.jpg',
     };
 
-    vi.spyOn(creatorApi, 'getVideoStreamUrl').mockResolvedValueOnce(mockStreamResponse);
-    vi.spyOn(creatorApi, 'getVideoThumbnailUrl').mockResolvedValueOnce(mockThumbnailResponse);
+    vi.spyOn(creatorApi, 'getVideoStreamUrl').mockResolvedValueOnce(
+      mockStreamResponse,
+    );
+    vi.spyOn(creatorApi, 'getVideoThumbnailUrl').mockResolvedValueOnce(
+      mockThumbnailResponse,
+    );
 
     render(<CreatorStudioPage />);
 
@@ -173,10 +193,14 @@ describe('CreatorStudioPage Component', () => {
     fireEvent.click(selectVideoButton);
 
     await waitFor(() => {
-      expect(creatorApi.getVideoStreamUrl).toHaveBeenCalledWith('selected-vid-456');
+      expect(creatorApi.getVideoStreamUrl).toHaveBeenCalledWith(
+        'selected-vid-456',
+      );
     });
 
-    const input = screen.getByPlaceholderText(/Enter Video ID.../i) as HTMLInputElement;
+    const input = screen.getByPlaceholderText(
+      /Enter Video ID.../i,
+    ) as HTMLInputElement;
     expect(input.value).toBe('selected-vid-456');
   });
 
@@ -188,7 +212,9 @@ describe('CreatorStudioPage Component', () => {
     const uploadSuccessButton = screen.getByText('Mock Upload Success');
     fireEvent.click(uploadSuccessButton);
 
-    const input = screen.getByPlaceholderText(/Enter Video ID.../i) as HTMLInputElement;
+    const input = screen.getByPlaceholderText(
+      /Enter Video ID.../i,
+    ) as HTMLInputElement;
     expect(input.value).toBe('uploaded-vid-123');
   });
 });

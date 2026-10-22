@@ -5,15 +5,28 @@ import { env } from '../config/env.js';
 import path from 'node:path';
 
 export class VideoService {
-  async uploadAndEnqueueVideo(creatorId: string, title: string, file: Express.Multer.File) {
+  async uploadAndEnqueueVideo(
+    creatorId: string,
+    title: string,
+    file: Express.Multer.File,
+  ) {
     const videoId = `vid_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const extension = path.extname(file.originalname).toLowerCase().replace(/[^a-z0-9.]/g, '').slice(0, 12);
+    const extension = path
+      .extname(file.originalname)
+      .toLowerCase()
+      .replace(/[^a-z0-9.]/g, '')
+      .slice(0, 12);
     const rawObjectPath = `raw/${creatorId}/${videoId}${extension}`;
 
     // 1. Upload raw file to MinIO 'videos' bucket
-    await storageClient.fPutObject(env.MINIO_BUCKET_NAME, rawObjectPath, file.path, {
-      'Content-Type': file.mimetype,
-    });
+    await storageClient.fPutObject(
+      env.MINIO_BUCKET_NAME,
+      rawObjectPath,
+      file.path,
+      {
+        'Content-Type': file.mimetype,
+      },
+    );
 
     // 2. Persist record in PostgreSQL
     const video = await prisma.video.create({
@@ -41,7 +54,7 @@ export class VideoService {
     return await storageClient.presignedGetObject(
       env.MINIO_BUCKET_NAME,
       `hls/${videoId}/master.m3u8`,
-      24 * 60 * 60
+      24 * 60 * 60,
     );
   }
 
@@ -57,7 +70,7 @@ export class VideoService {
     return await storageClient.presignedGetObject(
       env.MINIO_BUCKET_NAME,
       video.thumbnailPath,
-      24 * 60 * 60
+      24 * 60 * 60,
     );
   }
 
@@ -88,18 +101,22 @@ export class VideoService {
     }
 
     if (video.creatorId !== creatorId) {
-      throw new Error('Unauthorized: You can only retry processing for your own videos');
+      throw new Error(
+        'Unauthorized: You can only retry processing for your own videos',
+      );
     }
 
     if (!video.rawPath) {
-      throw new Error('Cannot retry processing: Raw video file path is missing');
+      throw new Error(
+        'Cannot retry processing: Raw video file path is missing',
+      );
     }
 
     // 2. Reset video status to PENDING and reset progress
     const updatedVideo = await prisma.video.update({
       where: { id: videoId },
       data: {
-        status: 'PENDING'
+        status: 'PENDING',
       },
     });
 
@@ -134,7 +151,10 @@ export class VideoService {
       try {
         await storageClient.removeObject(bucketName, video.rawPath);
       } catch (err) {
-        console.error(`Failed to remove raw file ${video.rawPath} from MinIO:`, err);
+        console.error(
+          `Failed to remove raw file ${video.rawPath} from MinIO:`,
+          err,
+        );
       }
     }
 
@@ -143,14 +163,21 @@ export class VideoService {
       try {
         await storageClient.removeObject(bucketName, video.thumbnailPath);
       } catch (err) {
-        console.error(`Failed to remove thumbnail ${video.thumbnailPath} from MinIO:`, err);
+        console.error(
+          `Failed to remove thumbnail ${video.thumbnailPath} from MinIO:`,
+          err,
+        );
       }
     }
 
     // 4. Remove generated HLS files folder (hls/{videoId}/*) from MinIO
     try {
       const hlsPrefix = `hls/${videoId}/`;
-      const objectsStream = storageClient.listObjectsV2(bucketName, hlsPrefix, true);
+      const objectsStream = storageClient.listObjectsV2(
+        bucketName,
+        hlsPrefix,
+        true,
+      );
       const objectsToDelete: string[] = [];
 
       for await (const obj of objectsStream) {
@@ -163,7 +190,10 @@ export class VideoService {
         await storageClient.removeObjects(bucketName, objectsToDelete);
       }
     } catch (err) {
-      console.error(`Failed to remove HLS folder for video ${videoId} from MinIO:`, err);
+      console.error(
+        `Failed to remove HLS folder for video ${videoId} from MinIO:`,
+        err,
+      );
     }
 
     // 5. Delete video record from PostgreSQL database
@@ -173,8 +203,6 @@ export class VideoService {
 
     return { success: true };
   }
-
 }
-
 
 export const videoService = new VideoService();

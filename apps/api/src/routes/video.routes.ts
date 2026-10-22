@@ -1,15 +1,15 @@
 import { Router } from 'express';
 import { uploadVideoMiddleware } from '../middlewares/upload.middleware.js';
-import { 
-  uploadVideoController, 
-  getStreamUrlController, 
-  getThumbnailUrlController, 
-  getVideoFeed, 
+import {
+  uploadVideoController,
+  getStreamUrlController,
+  getThumbnailUrlController,
+  getVideoFeed,
   getCreatorVideosController,
   retryVideoProcessingController,
   deleteVideoController,
   getHlsAssetController,
-  getThumbnailAssetController
+  getThumbnailAssetController,
 } from '../controllers/video.controller.js';
 import { authenticateJWT } from '../middlewares/auth.middleware.js';
 
@@ -51,7 +51,7 @@ const router = Router();
  *           type: string
  *           format: date-time
  *           example: "2026-10-05T12:00:00.000Z"
- * 
+ *
  *     StreamUrlResponse:
  *       type: object
  *       properties:
@@ -59,7 +59,7 @@ const router = Router();
  *           type: string
  *           format: uri
  *           example: "http://localhost:9000/videos/hls/vid_123/master.m3u8?X-Amz-Algorithm=..."
- * 
+ *
  *     ThumbnailUrlResponse:
  *       type: object
  *       properties:
@@ -68,7 +68,7 @@ const router = Router();
  *           format: uri
  *           nullable: true
  *           example: "http://localhost:9000/videos/thumbnails/vid_123.jpg?X-Amz-Algorithm=..."
- * 
+ *
  * tags:
  *   - name: Video Management
  *     description: Video uploading, streaming, feed retrieval, and processing lifecycle operations
@@ -111,7 +111,12 @@ const router = Router();
  *       401:
  *         description: Unauthorized - Invalid or missing JWT
  */
-router.post('/upload', authenticateJWT, uploadVideoMiddleware.single('video'), uploadVideoController);
+router.post(
+  '/upload',
+  authenticateJWT,
+  uploadVideoMiddleware.single('video'),
+  uploadVideoController,
+);
 
 /**
  * @openapi

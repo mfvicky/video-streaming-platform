@@ -4,7 +4,7 @@ import { logger } from './lib/logger.js';
 import { prisma, checkDatabaseConnection } from './lib/prisma.js';
 import { redis } from './lib/redis.js';
 import { connectRabbitMQ, closeRabbitMQ } from './lib/rabbitmq.js';
-import { initBuckets } from './lib/storage.js'; 
+import { initBuckets } from './lib/storage.js';
 
 async function bootstrap() {
   try {
@@ -20,7 +20,9 @@ async function bootstrap() {
 
     // 4. Start HTTP Server
     const server = app.listen(env.PORT, () => {
-      logger.info(`Server running on http://localhost:${env.PORT} in ${env.NODE_ENV} mode`);
+      logger.info(
+        `Server running on http://localhost:${env.PORT} in ${env.NODE_ENV} mode`,
+      );
     });
 
     // 5. Graceful Shutdown Function
@@ -48,7 +50,7 @@ async function bootstrap() {
           logger.info('RabbitMQ connection closed.');
 
           logger.info('Graceful shutdown completed. Exiting.');
-          
+
           // Give Pino stream time to flush before exiting
           setTimeout(() => process.exit(0), 100);
         } catch (err) {
@@ -68,7 +70,6 @@ async function bootstrap() {
         gracefulShutdown('SIGTERM');
       }
     });
-
   } catch (error) {
     logger.error({ error }, 'Failed to start application server');
     process.exit(1);

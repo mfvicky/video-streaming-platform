@@ -5,16 +5,26 @@ dotenv.config();
 
 const envSchema = z.object({
   // App
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  NODE_ENV: z
+    .enum(['development', 'production', 'test'])
+    .default('development'),
   PORT: z.string().default('3000').transform(Number),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
 
   // Auth
   JWT_SECRET: z.string().min(8, 'JWT_SECRET must be at least 8 characters'),
-  REFRESH_SECRET: z.string().min(8, 'REFRESH_SECRET must be at least 8 characters'),
+  REFRESH_SECRET: z
+    .string()
+    .min(8, 'REFRESH_SECRET must be at least 8 characters'),
   // Cryptography
-  RSA_PUBLIC_KEY: z.string().min(1, 'RSA_PUBLIC_KEY is required').transform((val) => val.replace(/\\n/g, '\n')),
-  RSA_PRIVATE_KEY: z.string().min(1, 'RSA_PRIVATE_KEY is required').transform((val) => val.replace(/\\n/g, '\n')),
+  RSA_PUBLIC_KEY: z
+    .string()
+    .min(1, 'RSA_PUBLIC_KEY is required')
+    .transform((val) => val.replace(/\\n/g, '\n')),
+  RSA_PRIVATE_KEY: z
+    .string()
+    .min(1, 'RSA_PRIVATE_KEY is required')
+    .transform((val) => val.replace(/\\n/g, '\n')),
 
   // Database & Cache
   DATABASE_URL: z.string().url(),
@@ -29,13 +39,18 @@ const envSchema = z.object({
   // Object Storage
   MINIO_ENDPOINT: z.string().default('localhost'),
   MINIO_PORT: z.string().default('9000').transform(Number),
-  MINIO_USE_SSL: z.string().default('false').transform((val) => val === 'true'),
+  MINIO_USE_SSL: z
+    .string()
+    .default('false')
+    .transform((val) => val === 'true'),
   MINIO_ACCESS_KEY: z.string().min(1),
   MINIO_SECRET_KEY: z.string().min(1),
   MINIO_BUCKET_NAME: z.string().default('video-uploads'),
 
   // Logging & Security
-  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('debug'),
+  LOG_LEVEL: z
+    .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace'])
+    .default('debug'),
   RATE_LIMIT_WINDOW_MS: z.string().default('900000').transform(Number),
   RATE_LIMIT_MAX_REQUESTS: z.string().default('300').transform(Number),
 });

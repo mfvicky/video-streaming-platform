@@ -7,8 +7,12 @@ import * as Minio from 'minio';
 async function testPostgres(): Promise<void> {
   console.log('\n--- Testing PostgreSQL (Prisma) ---');
   try {
-    const result = await prisma.$queryRaw<{ current_time: Date }[]>`SELECT NOW() as current_time`;
-    console.log(`[SUCCESS] PostgreSQL Connected. Server time: ${result[0]?.current_time}`);
+    const result = await prisma.$queryRaw<
+      { current_time: Date }[]
+    >`SELECT NOW() as current_time`;
+    console.log(
+      `[SUCCESS] PostgreSQL Connected. Server time: ${result[0]?.current_time}`,
+    );
   } catch (err: any) {
     console.error('[ERROR] PostgreSQL Connection Failed:', err.message);
   } finally {
@@ -18,7 +22,10 @@ async function testPostgres(): Promise<void> {
 
 async function testRedis(): Promise<void> {
   console.log('\n--- Testing Redis ---');
-  const redis = new Redis(env.REDIS_URL, { maxRetriesPerRequest: 1, lazyConnect: true });
+  const redis = new Redis(env.REDIS_URL, {
+    maxRetriesPerRequest: 1,
+    lazyConnect: true,
+  });
 
   try {
     await redis.connect();

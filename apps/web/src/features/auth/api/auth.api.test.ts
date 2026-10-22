@@ -58,7 +58,9 @@ describe('authApi', () => {
       const mockError = new Error('Invalid credentials');
       vi.spyOn(apiClient, 'post').mockRejectedValueOnce(mockError);
 
-      await expect(authApi.login(credentials)).rejects.toThrow('Invalid credentials');
+      await expect(authApi.login(credentials)).rejects.toThrow(
+        'Invalid credentials',
+      );
       expect(encryptPassword).toHaveBeenCalledWith('wrongPassword');
       expect(apiClient.post).toHaveBeenCalledWith('/auth/login', {
         email: 'test@example.com',
@@ -102,7 +104,9 @@ describe('authApi', () => {
       const mockError = new Error('Email already exists');
       vi.spyOn(apiClient, 'post').mockRejectedValueOnce(mockError);
 
-      await expect(authApi.register(registerData)).rejects.toThrow('Email already exists');
+      await expect(authApi.register(registerData)).rejects.toThrow(
+        'Email already exists',
+      );
       expect(encryptPassword).toHaveBeenCalledWith('securePassword123');
     });
   });

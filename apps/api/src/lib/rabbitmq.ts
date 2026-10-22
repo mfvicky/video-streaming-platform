@@ -8,8 +8,13 @@ let channel: amqp.Channel | null = null;
 export async function connectRabbitMQ(): Promise<void> {
   try {
     connection = await amqp.connect(env.RABBITMQ_URL);
-    connection.on('close', () => { connection = null; channel = null; });
-    connection.on('error', (error) => logger.error({ error }, 'RabbitMQ connection error'));
+    connection.on('close', () => {
+      connection = null;
+      channel = null;
+    });
+    connection.on('error', (error) =>
+      logger.error({ error }, 'RabbitMQ connection error'),
+    );
     channel = await connection.createChannel();
 
     if (!channel) {
@@ -24,7 +29,10 @@ export async function connectRabbitMQ(): Promise<void> {
   }
 }
 
-export async function publishToQueue(queueName: string, message: object): Promise<boolean> {
+export async function publishToQueue(
+  queueName: string,
+  message: object,
+): Promise<boolean> {
   try {
     if (!channel) {
       await connectRabbitMQ();
@@ -37,7 +45,7 @@ export async function publishToQueue(queueName: string, message: object): Promis
     return channel.sendToQueue(
       queueName,
       Buffer.from(JSON.stringify(message)),
-      { persistent: true }
+      { persistent: true },
     );
   } catch (error) {
     logger.error({ error }, `Failed to publish message to queue ${queueName}`);

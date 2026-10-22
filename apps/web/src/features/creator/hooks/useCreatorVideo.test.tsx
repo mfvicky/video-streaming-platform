@@ -1,6 +1,10 @@
 import type { ReactNode } from 'react';
 import { renderHook, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider, type Query } from '@tanstack/react-query';
+import {
+  QueryClient,
+  QueryClientProvider,
+  type Query,
+} from '@tanstack/react-query';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   useUploadVideo,
@@ -54,15 +58,23 @@ describe('useCreatorVideo hooks', () => {
 
   describe('useUploadVideo', () => {
     it('executes uploadCreatorVideo mutation successfully', async () => {
-      const mockResponse: UploadVideoResponse = { success: true, videoId: 'vid-123' };
-      vi.spyOn(creatorApi, 'uploadCreatorVideo').mockResolvedValueOnce(mockResponse);
+      const mockResponse: UploadVideoResponse = {
+        success: true,
+        videoId: 'vid-123',
+      };
+      vi.spyOn(creatorApi, 'uploadCreatorVideo').mockResolvedValueOnce(
+        mockResponse,
+      );
 
       const { result } = renderHook(() => useUploadVideo(), {
         wrapper: createWrapper(),
       });
 
       const formData = new FormData();
-      formData.append('file', new File(['dummy content'], 'video.mp4', { type: 'video/mp4' }));
+      formData.append(
+        'file',
+        new File(['dummy content'], 'video.mp4', { type: 'video/mp4' }),
+      );
 
       result.current.mutate(formData);
 
@@ -114,8 +126,13 @@ describe('useCreatorVideo hooks', () => {
     });
 
     it('polls every 5000ms when query response success is false', async () => {
-      const mockPendingResponse: VideoStreamResponse = { success: false, message: 'Processing' };
-      vi.spyOn(creatorApi, 'getVideoStreamUrl').mockResolvedValue(mockPendingResponse);
+      const mockPendingResponse: VideoStreamResponse = {
+        success: false,
+        message: 'Processing',
+      };
+      vi.spyOn(creatorApi, 'getVideoStreamUrl').mockResolvedValue(
+        mockPendingResponse,
+      );
 
       const { result } = renderHook(() => useVideoStream('vid-123', true), {
         wrapper: createWrapper(),
@@ -134,7 +151,13 @@ describe('useCreatorVideo hooks', () => {
       if (typeof queryOptions !== 'undefined') {
         const refetchInterval = (
           queryOptions as unknown as {
-            _query?: { options?: { refetchInterval?: (query: Query<VideoStreamResponse>) => number | false } };
+            _query?: {
+              options?: {
+                refetchInterval?: (
+                  query: Query<VideoStreamResponse>,
+                ) => number | false;
+              };
+            };
           }
         )._query?.options?.refetchInterval;
 
@@ -149,7 +172,9 @@ describe('useCreatorVideo hooks', () => {
         success: true,
         streamUrl: 'http://localhost/hls/vid-123.m3u8',
       };
-      vi.spyOn(creatorApi, 'getVideoStreamUrl').mockResolvedValueOnce(mockSuccessResponse);
+      vi.spyOn(creatorApi, 'getVideoStreamUrl').mockResolvedValueOnce(
+        mockSuccessResponse,
+      );
 
       const { result } = renderHook(() => useVideoStream('vid-123', true), {
         wrapper: createWrapper(),
@@ -165,7 +190,13 @@ describe('useCreatorVideo hooks', () => {
 
       const refetchInterval = (
         result.current as unknown as {
-          _query?: { options?: { refetchInterval?: (query: Query<VideoStreamResponse>) => number | false } };
+          _query?: {
+            options?: {
+              refetchInterval?: (
+                query: Query<VideoStreamResponse>,
+              ) => number | false;
+            };
+          };
         }
       )._query?.options?.refetchInterval;
 
@@ -181,7 +212,9 @@ describe('useCreatorVideo hooks', () => {
         success: true,
         thumbnailUrl: 'http://localhost/thumbs/vid-123.jpg',
       };
-      vi.spyOn(creatorApi, 'getVideoThumbnailUrl').mockResolvedValueOnce(mockData);
+      vi.spyOn(creatorApi, 'getVideoThumbnailUrl').mockResolvedValueOnce(
+        mockData,
+      );
 
       const { result } = renderHook(() => useVideoThumbnail('vid-123', true), {
         wrapper: createWrapper(),

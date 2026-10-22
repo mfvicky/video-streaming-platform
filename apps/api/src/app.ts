@@ -9,10 +9,7 @@ import { errorHandler } from './middlewares/error.middleware.js';
 import authRoutes from './routes/auth.routes.js';
 import videoRoutes from './routes/video.routes.js';
 
-
 const app = express();
-
-
 
 // Security and Core Middlewares
 app.use(helmet());

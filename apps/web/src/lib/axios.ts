@@ -12,7 +12,7 @@ apiClient.interceptors.request.use((config) => {
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  
+
   // Attach unique Request ID for log tracing
   config.headers['X-Request-ID'] = uuidv4();
   return config;
@@ -23,16 +23,16 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error.response?.status;
-    
+
     // Redirect to login if token is expired (401) or invalid/forbidden (403)
     if (status === 401 || status === 403) {
       localStorage.removeItem('accessToken');
-      
+
       // Avoid infinite redirects if already on the login page
       if (window.location.pathname !== '/login') {
         window.location.href = '/login';
       }
     }
     return Promise.reject(error);
-  }
+  },
 );

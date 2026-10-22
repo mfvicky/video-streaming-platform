@@ -21,8 +21,12 @@ export const VideoList: React.FC<VideoListProps> = ({
 }) => {
   const [videos, setVideos] = useState<CreatorVideo[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [retryingVideoIds, setRetryingVideoIds] = useState<Set<string>>(new Set());
-  const [deletingVideoIds, setDeletingVideoIds] = useState<Set<string>>(new Set());
+  const [retryingVideoIds, setRetryingVideoIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [deletingVideoIds, setDeletingVideoIds] = useState<Set<string>>(
+    new Set(),
+  );
 
   const fetchVideos = useCallback(async () => {
     try {
@@ -66,7 +70,7 @@ export const VideoList: React.FC<VideoListProps> = ({
 
   useEffect(() => {
     const hasPendingVideos = videos.some(
-      (v) => v.status === 'PENDING' || v.status === 'PROCESSING'
+      (v) => v.status === 'PENDING' || v.status === 'PROCESSING',
     );
 
     if (!hasPendingVideos) return;
@@ -98,7 +102,11 @@ export const VideoList: React.FC<VideoListProps> = ({
   };
 
   const handleDelete = async (videoId: string) => {
-    if (!window.confirm('Are you sure you want to delete this video? This cannot be undone.')) {
+    if (
+      !window.confirm(
+        'Are you sure you want to delete this video? This cannot be undone.',
+      )
+    ) {
       return;
     }
 
@@ -191,16 +199,41 @@ export const VideoList: React.FC<VideoListProps> = ({
           >
             {isRetrying ? (
               <>
-                <svg className="w-3 h-3 animate-spin text-slate-400" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                <svg
+                  className="w-3 h-3 animate-spin text-slate-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
                 </svg>
                 Queuing...
               </>
             ) : (
               <>
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
                 </svg>
                 Retry
               </>
@@ -234,8 +267,18 @@ export const VideoList: React.FC<VideoListProps> = ({
           onClick={fetchVideos}
           className="text-xs font-semibold text-slate-400 hover:text-white transition-colors flex items-center gap-1"
         >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          <svg
+            className="w-3.5 h-3.5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
           </svg>
           Refresh
         </button>
@@ -259,7 +302,9 @@ export const VideoList: React.FC<VideoListProps> = ({
               <div
                 key={video.id}
                 className={`py-3 px-3 rounded-xl transition-all flex items-center justify-between gap-4 ${
-                  isSelected ? 'bg-slate-800/80 border border-slate-700' : 'hover:bg-slate-800/40'
+                  isSelected
+                    ? 'bg-slate-800/80 border border-slate-700'
+                    : 'hover:bg-slate-800/40'
                 }`}
               >
                 <div className="min-w-0 flex-1 space-y-1">
@@ -288,12 +333,32 @@ export const VideoList: React.FC<VideoListProps> = ({
                     className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isDeleting ? (
-                      <svg className="w-4 h-4 animate-spin text-red-400" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      <svg
+                        className="w-4 h-4 animate-spin text-red-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                        />
                       </svg>
                     ) : (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"

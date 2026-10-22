@@ -110,8 +110,12 @@ export const minioMock = {
   listBuckets: vi.fn().mockResolvedValue([]),
   bucketExists: vi.fn().mockResolvedValue(true),
   makeBucket: vi.fn().mockResolvedValue({}),
-  presignedPutObject: vi.fn().mockResolvedValue('https://mock-s3-upload-url.com'),
-  presignedGetObject: vi.fn().mockResolvedValue('https://mock-s3-download-url.com'),
+  presignedPutObject: vi
+    .fn()
+    .mockResolvedValue('https://mock-s3-upload-url.com'),
+  presignedGetObject: vi
+    .fn()
+    .mockResolvedValue('https://mock-s3-download-url.com'),
 };
 
 // --- Module Registrations ---

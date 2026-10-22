@@ -46,7 +46,10 @@ export const CreatorStudioPage: React.FC = () => {
         alert('Video is still processing. Please try again in a few seconds.');
       }
 
-      if (thumbnailRes.status === 'fulfilled' && thumbnailRes.value?.thumbnailUrl) {
+      if (
+        thumbnailRes.status === 'fulfilled' &&
+        thumbnailRes.value?.thumbnailUrl
+      ) {
         setThumbnailUrl(thumbnailRes.value.thumbnailUrl);
       }
     } catch {
@@ -74,13 +77,15 @@ export const CreatorStudioPage: React.FC = () => {
         {/* Header Banner */}
         <div className="flex flex-col gap-2 border-b border-slate-800 pb-6">
           <span className="inline-flex items-center gap-2 px-3 py-1 bg-red-600/20 border border-red-500/30 rounded-full text-red-500 text-xs font-bold uppercase tracking-wider w-fit">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" /> Live Pipeline
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />{' '}
+            Live Pipeline
           </span>
           <h1 className="text-4xl font-black tracking-tight text-white">
             CREATOR <span className="text-red-600">STUDIO</span>
           </h1>
           <p className="text-slate-400 text-sm">
-            Upload raw video assets to dispatch FFmpeg HLS encoding jobs across the worker cluster.
+            Upload raw video assets to dispatch FFmpeg HLS encoding jobs across
+            the worker cluster.
           </p>
         </div>
 
@@ -90,8 +95,12 @@ export const CreatorStudioPage: React.FC = () => {
 
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
             <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
-              <h3 className="text-lg font-bold text-white tracking-wide">Preview HLS Stream</h3>
-              <span className="text-xs font-mono text-slate-500">HLS engine</span>
+              <h3 className="text-lg font-bold text-white tracking-wide">
+                Preview HLS Stream
+              </h3>
+              <span className="text-xs font-mono text-slate-500">
+                HLS engine
+              </span>
             </div>
 
             <div className="flex gap-3">
@@ -115,11 +124,28 @@ export const CreatorStudioPage: React.FC = () => {
               <HlsPlayer src={streamUrl} poster={thumbnailUrl} />
             ) : (
               <div className="w-full aspect-video bg-slate-950 border border-slate-800/80 rounded-xl flex flex-col items-center justify-center gap-3 text-slate-500">
-                <svg className="w-10 h-10 stroke-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg
+                  className="w-10 h-10 stroke-slate-700"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
-                <span className="text-xs tracking-wider uppercase font-medium text-slate-600">No active stream loaded</span>
+                <span className="text-xs tracking-wider uppercase font-medium text-slate-600">
+                  No active stream loaded
+                </span>
               </div>
             )}
           </div>
@@ -135,7 +161,8 @@ export const CreatorStudioPage: React.FC = () => {
           />
         ) : (
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-center text-slate-500 text-sm">
-            Unable to load creator profile from local storage. Please log in again.
+            Unable to load creator profile from local storage. Please log in
+            again.
           </div>
         )}
       </main>

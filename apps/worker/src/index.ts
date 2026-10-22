@@ -12,8 +12,6 @@ import { env } from './config/env.config';
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-
-
 interface VideoProcessingPayload {
   videoId: string;
   rawPath: string;
@@ -41,7 +39,11 @@ async function startWorker() {
 
       // 2. Download raw file from MinIO
       console.log(`Downloading ${rawPath} to local temp path...`);
-      await storageClient.fGetObject(env.MINIO_BUCKET_NAME, rawPath, rawFilePath);
+      await storageClient.fGetObject(
+        env.MINIO_BUCKET_NAME,
+        rawPath,
+        rawFilePath,
+      );
 
       // 3. Extract Thumbnail frame from input video
       console.log(`Extracting thumbnail for ${videoId}...`);
@@ -54,13 +56,22 @@ async function startWorker() {
       // 5. Upload generated thumbnail frame to MinIO
       const thumbnailMinioKey = `thumbnails/${videoId}/thumbnail.jpg`;
       console.log(`Uploading thumbnail for ${videoId}...`);
-      await storageClient.fPutObject(env.MINIO_BUCKET_NAME, thumbnailMinioKey, thumbnailFilePath, {
-        'Content-Type': 'image/jpeg',
-      });
+      await storageClient.fPutObject(
+        env.MINIO_BUCKET_NAME,
+        thumbnailMinioKey,
+        thumbnailFilePath,
+        {
+          'Content-Type': 'image/jpeg',
+        },
+      );
 
       // 6. Upload generated .m3u8 playlists & .ts chunks to MinIO
       console.log(`Uploading HLS files for ${videoId}...`);
-      await uploadFolderToMinio(env.MINIO_BUCKET_NAME, `hls/${videoId}`, hlsOutputDir);
+      await uploadFolderToMinio(
+        env.MINIO_BUCKET_NAME,
+        `hls/${videoId}`,
+        hlsOutputDir,
+      );
 
       // 7. Update status in PostgreSQL to READY with thumbnailPath
       await prisma.video.update({
@@ -78,10 +89,12 @@ async function startWorker() {
     } catch (error) {
       console.error(`Transcoding failure for ${videoId}:`, error);
 
-      await prisma.video.update({
-        where: { id: videoId },
-        data: { status: 'FAILED' },
-      }).catch(() => {});
+      await prisma.video
+        .update({
+          where: { id: videoId },
+          data: { status: 'FAILED' },
+        })
+        .catch(() => {});
 
       // NACK to remove from unacknowledged state (requeue: false prevents infinite retries)
       channel.nack(msg, false, false);

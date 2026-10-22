@@ -32,8 +32,12 @@ const router = Router();
 router.post(
   '/register',
   authRateLimiter,
-  validate(registerSchema.pick({ email: true, name: true, role: true }).extend({ password: z.string().min(1) })),
-  AuthController.register
+  validate(
+    registerSchema
+      .pick({ email: true, name: true, role: true })
+      .extend({ password: z.string().min(1) }),
+  ),
+  AuthController.register,
 );
 
 /**
@@ -62,7 +66,7 @@ router.post(
   '/login',
   authRateLimiter,
   validate(loginSchema),
-  AuthController.login
+  AuthController.login,
 );
 
 export default router;

@@ -12,10 +12,15 @@ const envSchema = z.object({
     .default('development'),
 
   // Database
-  DATABASE_URL: z.string().url('DATABASE_URL must be a valid PostgreSQL connection string'),
+  DATABASE_URL: z
+    .string()
+    .url('DATABASE_URL must be a valid PostgreSQL connection string'),
 
   // Message Queue
-  RABBITMQ_URL: z.string().url('RABBITMQ_URL must be a valid AMQP URL').default('amqp://guest:guest@localhost:5672'),
+  RABBITMQ_URL: z
+    .string()
+    .url('RABBITMQ_URL must be a valid AMQP URL')
+    .default('amqp://guest:guest@localhost:5672'),
   QUEUE_NAME: z.string().default('video_processing_queue'),
 
   // Redis

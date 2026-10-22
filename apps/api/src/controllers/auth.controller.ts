@@ -17,7 +17,9 @@ export class AuthController {
 
   static async login(req: Request, res: Response, next: NextFunction) {
     try {
-      const { user, accessToken, refreshToken } = await AuthService.login(req.body);
+      const { user, accessToken, refreshToken } = await AuthService.login(
+        req.body,
+      );
 
       res.cookie('refreshToken', refreshToken, {
         httpOnly: true,

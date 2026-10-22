@@ -7,7 +7,7 @@ export const errorHandler = (
   err: Error & { status?: number; statusCode?: number },
   _req: Request,
   res: Response,
-  _next: NextFunction
+  _next: NextFunction,
 ) => {
   logger.error(err);
 

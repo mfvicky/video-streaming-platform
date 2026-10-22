@@ -232,8 +232,7 @@ export const Navbar: React.FC = () => {
     return name.slice(0, 2).toUpperCase();
   };
 
-  const isCreatorOrAdmin =
-    user?.role === 'CREATOR' || user?.role === 'ADMIN';
+  const isCreatorOrAdmin = user?.role === 'CREATOR' || user?.role === 'ADMIN';
 
   return (
     <nav className="sticky top-0 z-50 bg-slate-950/80 backdrop-blur-md border-b border-slate-800/80 px-8 lg:px-16 py-4 flex items-center justify-between">

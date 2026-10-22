@@ -17,18 +17,32 @@ export async function ensureBucketExists(bucketName: string): Promise<void> {
   // Do NOT change bucket policy here: the API bootstrap enforces private access.
 }
 
-export async function uploadFolderToMinio(bucketName: string, targetPrefix: string, localFolderPath: string): Promise<void> {
+export async function uploadFolderToMinio(
+  bucketName: string,
+  targetPrefix: string,
+  localFolderPath: string,
+): Promise<void> {
   await ensureBucketExists(bucketName);
   for (const file of await fs.readdir(localFolderPath)) {
     const fullPath = path.join(localFolderPath, file);
     if ((await fs.stat(fullPath)).isDirectory()) {
-      await uploadFolderToMinio(bucketName, `${targetPrefix}/${file}`, fullPath);
+      await uploadFolderToMinio(
+        bucketName,
+        `${targetPrefix}/${file}`,
+        fullPath,
+      );
     } else {
       const destinationKey = `${targetPrefix}/${file}`;
-      const contentType = file.endsWith('.m3u8') ? 'application/vnd.apple.mpegurl'
-        : file.endsWith('.ts') ? 'video/mp2t'
-        : file.endsWith('.jpg') ? 'image/jpeg' : 'application/octet-stream';
-      await storageClient.fPutObject(bucketName, destinationKey, fullPath, { 'Content-Type': contentType });
+      const contentType = file.endsWith('.m3u8')
+        ? 'application/vnd.apple.mpegurl'
+        : file.endsWith('.ts')
+          ? 'video/mp2t'
+          : file.endsWith('.jpg')
+            ? 'image/jpeg'
+            : 'application/octet-stream';
+      await storageClient.fPutObject(bucketName, destinationKey, fullPath, {
+        'Content-Type': contentType,
+      });
     }
   }
 }

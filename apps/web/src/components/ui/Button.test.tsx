@@ -5,7 +5,9 @@ import { Button } from './Button';
 describe('Button Component', () => {
   it('renders button with correct text label', () => {
     render(<Button>Click Me</Button>);
-    expect(screen.getByRole('button', { name: /click me/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /click me/i }),
+    ).toBeInTheDocument();
   });
 
   it('triggers onClick handler when clicked', () => {
@@ -17,6 +19,8 @@ describe('Button Component', () => {
 
   it('disables the button when disabled prop or loading state is active', () => {
     render(<Button disabled>Disabled State</Button>);
-    expect(screen.getByRole('button', { name: /disabled state/i })).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: /disabled state/i }),
+    ).toBeDisabled();
   });
 });

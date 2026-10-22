@@ -47,7 +47,7 @@ Database and dashboard credentials come from the **root `.env`**. Never commit `
 
 ## Local Development (Hot Reload)
 
-# 0. Installation of corepack
+### 0. Installation of corepack
 
 ```bash
 # Upgrade Node.js

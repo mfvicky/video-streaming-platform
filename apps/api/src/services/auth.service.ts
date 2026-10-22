@@ -1,7 +1,12 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@app/db';
-import { RegisterInput, LoginInput, UserRole, registerSchema } from '@app/shared';
+import {
+  RegisterInput,
+  LoginInput,
+  UserRole,
+  registerSchema,
+} from '@app/shared';
 import { redis } from '../lib/redis.js';
 import { env } from '../config/env.js';
 import { decryptPassword } from '../utils/crypto.js';
@@ -16,7 +21,8 @@ const REFRESH_TOKEN_EXPIRY_DAYS = 7;
 
 export class AuthService {
   static async register(input: RegisterInput) {
-    if (input.role === 'ADMIN') throw new Error('Admin registration is not permitted');
+    if (input.role === 'ADMIN')
+      throw new Error('Admin registration is not permitted');
     const existingUser = await prisma.user.findUnique({
       where: { email: input.email },
     });
@@ -60,7 +66,10 @@ export class AuthService {
 
     // Decrypt the RSA-encrypted password from frontend payload
     const plainTextPassword = decryptPassword(input.password);
-    const isPasswordValid = await bcrypt.compare(plainTextPassword, user.password);
+    const isPasswordValid = await bcrypt.compare(
+      plainTextPassword,
+      user.password,
+    );
 
     if (!isPasswordValid) {
       throw new Error('Invalid email or password');
@@ -107,7 +116,11 @@ export class AuthService {
     });
 
     // Store in Redis cache for fast lookup & revocation checks
-    await redis.setex(`refresh_token:${userId}`, REFRESH_TOKEN_EXPIRY_DAYS * 86400, refreshToken);
+    await redis.setex(
+      `refresh_token:${userId}`,
+      REFRESH_TOKEN_EXPIRY_DAYS * 86400,
+      refreshToken,
+    );
 
     return refreshToken;
   }

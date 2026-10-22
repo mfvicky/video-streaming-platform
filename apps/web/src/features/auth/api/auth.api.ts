@@ -18,7 +18,10 @@ export const authApi = {
       password: encryptPassword(data.password),
     };
 
-    const response = await apiClient.post<{ message: string }>('/auth/register', payload);
+    const response = await apiClient.post<{ message: string }>(
+      '/auth/register',
+      payload,
+    );
     return response.data;
   },
 };

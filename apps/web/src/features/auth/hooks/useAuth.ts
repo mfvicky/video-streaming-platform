@@ -14,7 +14,11 @@ export interface ApiResponse<T> {
 export const useLogin = () => {
   const navigate = useNavigate();
 
-  return useMutation<ApiResponse<AuthResponse>, AxiosError<{ message?: string }>, LoginInput>({
+  return useMutation<
+    ApiResponse<AuthResponse>,
+    AxiosError<{ message?: string }>,
+    LoginInput
+  >({
     mutationFn: (data: LoginInput) =>
       authApi.login(data) as unknown as Promise<ApiResponse<AuthResponse>>,
     onSuccess: (response) => {
@@ -30,7 +34,8 @@ export const useLogin = () => {
       }
     },
     onError: (error) => {
-      const message = error.response?.data?.message || 'Invalid login credentials';
+      const message =
+        error.response?.data?.message || 'Invalid login credentials';
       toast.error(message);
       console.log(error);
     },

@@ -8,7 +8,11 @@ import { setupSwagger } from './config/swagger';
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-console.log('Environment Variables Loaded:', process.env.PORT, process.env.CORS_ORIGIN);
+console.log(
+  'Environment Variables Loaded:',
+  process.env.PORT,
+  process.env.CORS_ORIGIN,
+);
 
 const app: Express = express();
 const PORT = process.env.PORT || 3000;
