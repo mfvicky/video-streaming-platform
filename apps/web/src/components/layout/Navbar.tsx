@@ -1,5 +1,6 @@
 // import React, { useState, useRef, useEffect } from 'react';
 // import { Link, useNavigate } from 'react-router-dom';
+import { authApi } from '../../features/auth/api/auth.api';
 
 // interface UserData {
 //   id: string;
@@ -56,7 +57,7 @@
 //     if (!name) return 'U';
 //     const parts = name.trim().split(' ');
 //     if (parts.length >= 2) {
-//       return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+//       return `parts[0][0]{parts[1][0]}`.toUpperCase();
 //     }
 //     return name.slice(0, 2).toUpperCase();
 //   };
@@ -214,12 +215,15 @@ export const Navbar: React.FC = () => {
     };
   }, []);
 
-  const handleSignOut = () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('user');
-    setIsDropdownOpen(false);
-    navigate('/login');
-    window.location.reload();
+  const handleSignOut = async () => {
+    try {
+      await authApi.logout();
+    } finally {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('user');
+      setIsDropdownOpen(false);
+      navigate('/login');
+    }
   };
 
   // Extract initials for fallback avatar (e.g. "Parth Sharma" -> "PS")

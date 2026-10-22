@@ -84,6 +84,58 @@ describe('AuthService Unit Tests', () => {
     });
   });
 
+  describe('refresh token rotation', () => {
+    it('consumes the previous token and issues a new access/refresh pair', async () => {
+      const user = {
+        id: 'usr_123',
+        email: 'test@example.com',
+        name: 'User',
+        role: 'CREATOR',
+      };
+      vi.mocked(jwt.verify).mockReturnValue({
+        sub: user.id,
+        jti: 'nonce',
+      } as never);
+      prismaMock.refreshToken.findUnique.mockResolvedValue({
+        id: 'old-token-id',
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 60000),
+      } as never);
+      prismaMock.user.findUnique.mockResolvedValue(user as never);
+      prismaMock.refreshToken.deleteMany.mockResolvedValue({
+        count: 1,
+      } as never);
+      prismaMock.refreshToken.create.mockResolvedValue({
+        id: 'new-token-id',
+      } as never);
+      vi.mocked(jwt.sign).mockReturnValue('new-jwt' as never);
+      const result = await AuthService.refresh('old-jwt');
+      expect(result.accessToken).toBe('new-jwt');
+      expect(result.refreshToken).toBe('new-jwt');
+      expect(prismaMock.refreshToken.deleteMany).toHaveBeenCalled();
+      expect(prismaMock.refreshToken.create).toHaveBeenCalled();
+    });
+
+    it('rejects a previously consumed refresh token', async () => {
+      vi.mocked(jwt.verify).mockReturnValue({
+        sub: 'usr_123',
+        jti: 'nonce',
+      } as never);
+      prismaMock.refreshToken.findUnique.mockResolvedValue(null);
+      await expect(AuthService.refresh('reused-token')).rejects.toMatchObject({
+        statusCode: 401,
+      });
+    });
+
+    it('revokes refresh cookie token during logout', async () => {
+      prismaMock.refreshToken.deleteMany.mockResolvedValue({
+        count: 1,
+      } as never);
+      await AuthService.logout('old-jwt');
+      expect(prismaMock.refreshToken.deleteMany).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('login', () => {
     it('should return user info and tokens on valid credentials', async () => {
       const loginInput = {

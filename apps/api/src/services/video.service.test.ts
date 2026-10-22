@@ -20,6 +20,10 @@ vi.mock('../lib/storage', () => ({
   },
 }));
 
+vi.mock('../lib/redis', () => ({
+  redis: { del: vi.fn().mockResolvedValue(1) },
+}));
+
 vi.mock('../lib/rabbitmq', () => ({
   publishToQueue: vi.fn(),
 }));
@@ -27,7 +31,7 @@ vi.mock('../lib/rabbitmq', () => ({
 // 3. Import service & mocked modules AFTER mocks are registered
 import { VideoService, videoService } from './video.service';
 import { minioClient as storageClient } from '../lib/storage';
-import { publishToQueue } from '../lib/rabbitmq';
+import { publishToQueue } from '../lib/rabbitmq.js';
 
 describe('VideoService Unit Tests', () => {
   let instance: VideoService;
@@ -89,6 +93,7 @@ describe('VideoService Unit Tests', () => {
           rawPath: expect.stringMatching(
             new RegExp(`^raw/${creatorId}/vid_.*\\.mp4$`),
           ),
+          processingJobId: expect.any(String),
         },
       });
 
@@ -96,6 +101,8 @@ describe('VideoService Unit Tests', () => {
         videoId: result.id,
         creatorId,
         rawPath: result.rawPath,
+        jobId: expect.any(String),
+        attempt: 1,
       });
 
       expect(result).toHaveProperty('id');
@@ -197,6 +204,16 @@ describe('VideoService Unit Tests', () => {
           thumbnailPath: true,
           createdAt: true,
           updatedAt: true,
+          durationSeconds: true,
+          width: true,
+          height: true,
+          videoCodec: true,
+          fileSizeBytes: true,
+          bitrate: true,
+          audioChannels: true,
+          processingJobId: true,
+          processingAttempts: true,
+          processingError: true,
         },
       });
       expect(result).toEqual(mockVideos);
@@ -216,13 +233,13 @@ describe('VideoService Unit Tests', () => {
         status: 'FAILED',
       } as never);
 
-      prismaMock.video.update.mockResolvedValue({
+      prismaMock.video.updateMany.mockResolvedValue({ count: 1 } as never);
+      prismaMock.video.findUniqueOrThrow.mockResolvedValue({
         id: videoId,
         creatorId,
         rawPath,
         status: 'PENDING',
       } as never);
-
       vi.mocked(publishToQueue).mockResolvedValue(true as never);
 
       const result = await instance.retryVideoProcessing(videoId, creatorId);
@@ -230,14 +247,22 @@ describe('VideoService Unit Tests', () => {
       expect(prismaMock.video.findUnique).toHaveBeenCalledWith({
         where: { id: videoId },
       });
-      expect(prismaMock.video.update).toHaveBeenCalledWith({
-        where: { id: videoId },
-        data: { status: 'PENDING' },
+      expect(prismaMock.video.updateMany).toHaveBeenCalledWith({
+        where: { id: videoId, creatorId, status: 'FAILED' },
+        data: {
+          status: 'PENDING',
+          processingJobId: expect.any(String),
+          processingLeaseUntil: null,
+          processingAttempts: 0,
+          processingError: null,
+        },
       });
       expect(publishToQueue).toHaveBeenCalledWith('video_processing_queue', {
         videoId,
         creatorId,
         rawPath,
+        jobId: expect.any(String),
+        attempt: 1,
       });
       expect(result.status).toBe('PENDING');
     });
@@ -248,7 +273,7 @@ describe('VideoService Unit Tests', () => {
       await expect(
         instance.retryVideoProcessing('invalid_id', creatorId),
       ).rejects.toThrow('Video not found');
-      expect(prismaMock.video.update).not.toHaveBeenCalled();
+      expect(prismaMock.video.updateMany).not.toHaveBeenCalled();
       expect(publishToQueue).not.toHaveBeenCalled();
     });
 
@@ -264,7 +289,7 @@ describe('VideoService Unit Tests', () => {
       ).rejects.toThrow(
         'Unauthorized: You can only retry processing for your own videos',
       );
-      expect(prismaMock.video.update).not.toHaveBeenCalled();
+      expect(prismaMock.video.updateMany).not.toHaveBeenCalled();
     });
 
     it('should throw error if rawPath is missing', async () => {
@@ -279,7 +304,7 @@ describe('VideoService Unit Tests', () => {
       ).rejects.toThrow(
         'Cannot retry processing: Raw video file path is missing',
       );
-      expect(prismaMock.video.update).not.toHaveBeenCalled();
+      expect(prismaMock.video.updateMany).not.toHaveBeenCalled();
     });
   });
 

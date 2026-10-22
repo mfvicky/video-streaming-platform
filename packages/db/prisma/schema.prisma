@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+provider = "prisma-client-js"
 }
 
 datasource db {
@@ -42,15 +42,29 @@ model RefreshToken {
 }
 
 model Video {
-  id            String      @id @default(uuid())
-  title         String
-  status        VideoStatus @default(PENDING)
-  rawPath       String
-  thumbnailPath String?
-  creatorId     String
-  creator       User        @relation(fields: [creatorId], references: [id], onDelete: Cascade)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  id                   String      @id @default(uuid())
+  title                String
+  status               VideoStatus @default(PENDING)
+  rawPath              String
+  thumbnailPath        String?
+  // FFprobe metadata (null until the worker probes the original file).
+  durationSeconds      Float?
+  width                Int?
+  height               Int?
+  videoCodec           String?
+  fileSizeBytes        Int?
+  bitrate              Int?
+  audioChannels        Int?
+  // A unique job ID prevents stale / duplicate queue messages from processing.
+  processingJobId      String?
+  processingLeaseUntil DateTime?
+  processingAttempts   Int         @default(0)
+  processingError      String?
+  creatorId            String
+  creator              User        @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
 
   @@index([creatorId])
+  @@index([status, processingLeaseUntil])
 }

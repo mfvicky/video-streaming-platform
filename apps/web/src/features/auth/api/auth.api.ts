@@ -12,6 +12,10 @@ export const authApi = {
     return response.data;
   },
 
+  logout: async (): Promise<void> => {
+    await apiClient.post('/auth/logout');
+  },
+
   register: async (data: RegisterInput): Promise<{ message: string }> => {
     const payload: RegisterInput = {
       ...data,

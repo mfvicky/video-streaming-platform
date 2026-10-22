@@ -3,29 +3,28 @@ import { env } from '../config/env.js';
 import { logger } from './logger.js';
 
 let connection: amqp.ChannelModel | null = null;
-let channel: amqp.Channel | null = null;
+let channel: amqp.ConfirmChannel | null = null;
 
+/** ConfirmChannel ensures a successful API response means RabbitMQ accepted the job. */
 export async function connectRabbitMQ(): Promise<void> {
+  if (connection && channel) return;
+  const con = await amqp.connect(env.RABBITMQ_URL);
   try {
-    connection = await amqp.connect(env.RABBITMQ_URL);
-    connection.on('close', () => {
+    const ch = await con.createConfirmChannel();
+    await ch.assertQueue(env.QUEUE_NAME, { durable: true });
+    connection = con;
+    channel = ch;
+    con.on('close', () => {
       connection = null;
       channel = null;
     });
-    connection.on('error', (error) =>
+    con.on('error', (error) =>
       logger.error({ error }, 'RabbitMQ connection error'),
     );
-    channel = await connection.createChannel();
-
-    if (!channel) {
-      throw new Error('Failed to create RabbitMQ channel');
-    }
-
-    await channel.assertQueue(env.QUEUE_NAME, { durable: true });
     logger.info(`Connected to RabbitMQ queue: ${env.QUEUE_NAME}`);
-  } catch (error) {
-    logger.error({ error }, 'Failed to connect to RabbitMQ');
-    throw error;
+  } catch (err) {
+    await con.close().catch(() => {});
+    throw err;
   }
 }
 
@@ -33,38 +32,29 @@ export async function publishToQueue(
   queueName: string,
   message: object,
 ): Promise<boolean> {
-  try {
-    if (!channel) {
-      await connectRabbitMQ();
-    }
-    if (!channel) {
-      throw new Error('RabbitMQ channel is unavailable');
-    }
-
-    await channel.assertQueue(queueName, { durable: true });
-    return channel.sendToQueue(
-      queueName,
-      Buffer.from(JSON.stringify(message)),
-      { persistent: true },
-    );
-  } catch (error) {
-    logger.error({ error }, `Failed to publish message to queue ${queueName}`);
-    throw error;
-  }
+  if (!channel) await connectRabbitMQ();
+  const ch = channel;
+  if (!ch) throw new Error('RabbitMQ channel unavailable');
+  await ch.assertQueue(queueName, { durable: true });
+  ch.sendToQueue(queueName, Buffer.from(JSON.stringify(message)), {
+    persistent: true,
+    contentType: 'application/json',
+  });
+  await ch.waitForConfirms();
+  return true;
 }
 
 export async function closeRabbitMQ(): Promise<void> {
   try {
-    if (channel) {
-      await channel.close();
-      channel = null;
-    }
-    if (connection) {
-      await connection.close();
-      connection = null;
-    }
-    logger.info('RabbitMQ connection closed.');
-  } catch (error) {
-    logger.error({ error }, 'Error while closing RabbitMQ connection');
+    if (channel) await channel.close();
+  } catch (err) {
+    logger.warn({ err }, 'RabbitMQ channel close failed');
   }
+  try {
+    if (connection) await connection.close();
+  } catch (err) {
+    logger.warn({ err }, 'RabbitMQ connection close failed');
+  }
+  channel = null;
+  connection = null;
 }

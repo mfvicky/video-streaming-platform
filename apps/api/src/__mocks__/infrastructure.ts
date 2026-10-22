@@ -74,13 +74,16 @@ export const prismaMock = {
   },
   refreshToken: {
     create: vi.fn(),
+    findUnique: vi.fn(),
     deleteMany: vi.fn(),
   },
   video: {
     create: vi.fn(),
     findUnique: vi.fn(),
+    findUniqueOrThrow: vi.fn(),
     findMany: vi.fn(),
     update: vi.fn(),
+    updateMany: vi.fn(),
     delete: vi.fn(),
   },
 };
@@ -89,7 +92,7 @@ export const prismaMock = {
 export const redisMock = {
   setex: vi.fn(),
   get: vi.fn(),
-  del: vi.fn(),
+  del: vi.fn().mockResolvedValue(1),
 };
 
 // 3. RabbitMQ Mock

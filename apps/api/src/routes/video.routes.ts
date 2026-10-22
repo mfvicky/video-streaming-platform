@@ -10,8 +10,9 @@ import {
   deleteVideoController,
   getHlsAssetController,
   getThumbnailAssetController,
-} from '../controllers/video.controller.js';
-import { authenticateJWT } from '../middlewares/auth.middleware.js';
+  getVideoProgressController,
+} from '../controllers/video.controller';
+import { authenticateJWT } from '../middlewares/auth.middleware';
 
 const router = Router();
 
@@ -229,6 +230,8 @@ router.get('/creator', authenticateJWT, getCreatorVideosController);
  *       404:
  *         description: Video not found
  */
+router.get('/progress/:videoId', authenticateJWT, getVideoProgressController);
+
 router.post('/retry/:videoId', authenticateJWT, retryVideoProcessingController);
 
 /**

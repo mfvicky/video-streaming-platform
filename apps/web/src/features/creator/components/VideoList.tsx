@@ -77,7 +77,7 @@ export const VideoList: React.FC<VideoListProps> = ({
 
     const interval = setInterval(() => {
       fetchVideos();
-    }, 25000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [videos, fetchVideos]);
@@ -311,6 +311,36 @@ export const VideoList: React.FC<VideoListProps> = ({
                   <p className="text-sm font-semibold text-slate-200 truncate">
                     {video.title || 'Untitled Video'}
                   </p>
+                  {video.status === 'PROCESSING' && video.progress && (
+                    <div
+                      aria-label={`Processing ${video.progress.percent}%`}
+                      className="space-y-1"
+                    >
+                      <div className="text-xs text-slate-400">
+                        {video.progress.stage}: {video.progress.percent}%
+                      </div>
+                      <div className="w-full h-1.5 rounded bg-slate-800 overflow-hidden">
+                        <div
+                          className="h-full bg-red-500 transition-all"
+                          style={{ width: `${video.progress.percent}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {video.status === 'FAILED' && video.processingError && (
+                    <p
+                      className="text-xs text-red-400 line-clamp-2"
+                      title={video.processingError}
+                    >
+                      {video.processingError}
+                    </p>
+                  )}
+                  {video.width && video.height && (
+                    <p className="text-xs text-slate-400">
+                      {video.width}×{video.height} ·{' '}
+                      {video.videoCodec ?? 'unknown codec'}
+                    </p>
+                  )}
                   <div className="flex items-center gap-3 text-xs text-slate-500 font-mono">
                     <span className="truncate">ID: {video.id}</span>
                     <span>|</span>

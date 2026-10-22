@@ -4,6 +4,7 @@ import { minioClient } from '../lib/storage.js';
 import { Request, Response, NextFunction } from 'express';
 import { videoService } from '../services/video.service.js';
 import { prisma } from '../lib/prisma.js';
+import { redis } from '../lib/redis.js';
 
 export const uploadVideoController = async (req: Request, res: Response) => {
   try {
@@ -87,7 +88,7 @@ export const getHlsAssetController = async (req: Request, res: Response) => {
     : String(req.params.asset || '');
   if (
     !/^vid_[a-z0-9_]+$/i.test(videoId) ||
-    !/^(?:master\.m3u8|[01]\/(?:manifest\.m3u8|segment_\d+\.ts))$/.test(
+    !/^(?:master\.m3u8|[012]\/(?:manifest\.m3u8|segment_\d+\.ts))$/.test(
       filePath,
     )
   ) {
@@ -232,17 +233,95 @@ export const getCreatorVideosController = async (
     }
 
     const videos = await videoService.getVideosByCreatorId(creatorId);
-
-    return res.status(200).json({
-      success: true,
-      videos,
+    // One Redis round trip for the list. Cache data is optional; database remains authoritative.
+    let progressValues: Array<string | null> = videos.map(() => null);
+    try {
+      if (videos.length)
+        progressValues = await redis.mget(
+          ...videos.map((v) => `video:progress:${v.id}`),
+        );
+    } catch {
+      /* Redis progress is best effort */
+    }
+    const enriched = videos.map((video, index) => {
+      try {
+        const progress = progressValues[index]
+          ? (JSON.parse(progressValues[index]!) as {
+              jobId?: string;
+              percent?: number;
+              status?: string;
+              stage?: string;
+            })
+          : null;
+        const { processingJobId, ...safe } = video;
+        return {
+          ...safe,
+          progress:
+            progress?.status === video.status &&
+            progress?.jobId === processingJobId
+              ? progress
+              : null,
+        };
+      } catch {
+        const { processingJobId: _jobId, ...safe } = video;
+        void _jobId;
+        return { ...safe, progress: null };
+      }
     });
+    return res.status(200).json({ success: true, videos: enriched });
   } catch (error: any) {
     return res.status(500).json({
       success: false,
       message: error.message,
     });
   }
+};
+
+/** Progress and metadata are visible only to the video's authenticated creator. */
+export const getVideoProgressController = async (
+  req: Request,
+  res: Response,
+) => {
+  const videoId = String(req.params.videoId ?? '');
+  const video = await prisma.video.findUnique({
+    where: { id: videoId },
+    select: {
+      id: true,
+      creatorId: true,
+      status: true,
+      durationSeconds: true,
+      width: true,
+      height: true,
+      videoCodec: true,
+      fileSizeBytes: true,
+      bitrate: true,
+      audioChannels: true,
+      processingAttempts: true,
+      processingError: true,
+      processingJobId: true,
+    },
+  });
+  if (!video)
+    return res.status(404).json({ success: false, message: 'Video not found' });
+  if (video.creatorId !== req.user?.id)
+    return res.status(403).json({ success: false, message: 'Not your video' });
+  let progress: unknown = null;
+  try {
+    const raw = await redis.get(`video:progress:${videoId}`);
+    if (raw) {
+      const candidate = JSON.parse(raw) as { jobId?: string };
+      if (
+        candidate.jobId === video.processingJobId &&
+        (candidate as { status?: string }).status === video.status
+      )
+        progress = candidate;
+    }
+  } catch {
+    /* best effort cache */
+  }
+  const { processingJobId: _jobId, ...data } = video;
+  void _jobId;
+  return res.json({ success: true, data: { ...data, progress } });
 };
 
 export const retryVideoProcessingController = async (
@@ -284,7 +363,9 @@ export const retryVideoProcessingController = async (
           ? 403
           : /not found/.test(error.message)
             ? 404
-            : 500,
+            : /Conflict/.test(error.message)
+              ? 409
+              : 500,
       )
       .json({ success: false, message: error.message });
   }
@@ -322,7 +403,9 @@ export const deleteVideoController = async (req: Request, res: Response) => {
           ? 403
           : /not found/.test(error.message)
             ? 404
-            : 500,
+            : /Conflict/.test(error.message)
+              ? 409
+              : 500,
       )
       .json({ success: false, message: error.message });
   }

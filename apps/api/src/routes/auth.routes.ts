@@ -3,7 +3,10 @@ import { Router } from 'express';
 import { registerSchema, loginSchema } from '@app/shared';
 import { AuthController } from '../controllers/auth.controller.js';
 import { validate } from '../middlewares/validate.middleware.js';
-import { authRateLimiter } from '../middlewares/rateLimiter.middleware.js';
+import {
+  authRateLimiter,
+  refreshRateLimiter,
+} from '../middlewares/rateLimiter.middleware.js';
 
 const router = Router();
 
@@ -68,5 +71,8 @@ router.post(
   validate(loginSchema),
   AuthController.login,
 );
+
+router.post('/refresh', refreshRateLimiter, AuthController.refresh);
+router.post('/logout', refreshRateLimiter, AuthController.logout);
 
 export default router;

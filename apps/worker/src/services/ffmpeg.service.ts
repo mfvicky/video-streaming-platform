@@ -1,24 +1,27 @@
-import { spawn } from 'child_process';
-import path from 'path';
+import { spawn } from 'node:child_process';
+import path from 'node:path';
 import fs from 'fs-extra';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
+import type { VideoMetadata } from './ffprobe.service';
+import { selectHlsVariants } from './hls-profiles';
+export { selectHlsVariants } from './hls-profiles';
 
-// The Docker worker installs FFmpeg from apk; local macOS/Windows may use the bundled binary.
 const ffmpegBinaryPath =
   process.env.FFMPEG_PATH || ffmpegInstaller.path || 'ffmpeg';
 
 async function runFfmpeg(args: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
-    const process = spawn(ffmpegBinaryPath, args);
+    const proc = spawn(ffmpegBinaryPath, args);
     let lastError = '';
-    process.stderr.on('data', (data: Buffer) => {
+    proc.stderr.on('data', (data: Buffer) => {
       lastError = (lastError + data.toString()).slice(-4000);
     });
-    process.on('error', reject);
-    process.on('close', (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`FFmpeg exited with ${code}: ${lastError}`));
-    });
+    proc.once('error', reject);
+    proc.once('close', (code) =>
+      code === 0
+        ? resolve()
+        : reject(new Error(`FFmpeg exited with ${code}: ${lastError}`)),
+    );
   });
 }
 
@@ -44,30 +47,18 @@ export const extractThumbnail = async (
   return outputPath;
 };
 
-/**
- * Make two self-contained HLS renditions. Each independent muxer maps the
- * *first* audio stream if it exists; no second audio track is ever required.
- * `0:a:0?` also allows silent video files.
- *
- * Separate output files avoid `-var_stream_map` mismatches and accidental
- * audio stream reuse, which would make all renditions fail together.
- */
 export const transcodeToHLS = async (
   inputPath: string,
   outputDir: string,
+  metadata: VideoMetadata,
+  onProgress?: (percent: number) => Promise<void>,
 ): Promise<string> => {
-  const source = path.resolve(inputPath);
-  const variants = [
-    {
-      index: 0,
-      width: 1280,
-      height: 720,
-      bitrate: '2800k',
-      bandwidth: 2800000,
-    },
-    { index: 1, width: 854, height: 480, bitrate: '1400k', bandwidth: 1400000 },
-  ];
-  for (const variant of variants) {
+  const variants = selectHlsVariants(metadata)
+  // TEMP: Disable 1080p transcoding
+  .filter((v) => v.width <= 1280 && v.height <= 720)
+  .map((v, index) => ({ ...v, index }));
+  
+  for (const [index, variant] of variants.entries()) {
     const folder = path.resolve(outputDir, String(variant.index));
     await fs.ensureDir(folder);
     await runFfmpeg([
@@ -76,17 +67,17 @@ export const transcodeToHLS = async (
       'error',
       '-y',
       '-i',
-      source,
+      path.resolve(inputPath),
       '-map',
       '0:v:0',
       '-map',
       '0:a:0?',
       '-vf',
-      `scale=${variant.width}:${variant.height}:force_original_aspect_ratio=decrease:force_divisible_by=2`,
+      `scale=${variant.width}:${variant.height}:flags=lanczos,setsar=1`,
       '-c:v',
       'libx264',
       '-preset',
-      'ultrafast',
+      'veryfast',
       '-pix_fmt',
       'yuv420p',
       '-b:v',
@@ -113,6 +104,7 @@ export const transcodeToHLS = async (
       path.join(folder, 'segment_%03d.ts'),
       path.join(folder, 'manifest.m3u8'),
     ]);
+    await onProgress?.(Math.round(((index + 1) / variants.length) * 100));
   }
   const manifest = [
     '#EXTM3U',

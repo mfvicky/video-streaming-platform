@@ -8,7 +8,7 @@ import { Button } from '../../../components/ui/Button';
 import { useLogin } from '../hooks/useAuth';
 
 export const LoginForm: React.FC = () => {
-  const { mutate: login, isPending } = useLogin();
+  const { mutate: login, isPending, isError, error } = useLogin();
 
   const {
     register,
@@ -19,7 +19,6 @@ export const LoginForm: React.FC = () => {
   });
 
   const onSubmit = (data: LoginInput) => {
-    console.log(data, 'asd');
     login(data);
   };
 
@@ -57,6 +56,12 @@ export const LoginForm: React.FC = () => {
           {...register('password')}
         />
 
+        {isError && (
+          <p role="alert" className="text-sm text-red-400" aria-live="polite">
+            {error?.response?.data?.message ||
+              'Unable to sign in. Please try again.'}
+          </p>
+        )}
         <Button type="submit" isLoading={isPending}>
           Sign In
         </Button>

@@ -7,6 +7,18 @@ export interface CreatorVideo {
   thumbnailPath: string | null;
   createdAt: string;
   updatedAt: string;
+  durationSeconds?: number | null;
+  width?: number | null;
+  height?: number | null;
+  videoCodec?: string | null;
+  fileSizeBytes?: number | null;
+  processingError?: string | null;
+  progress?: {
+    status: string;
+    percent: number;
+    stage: string;
+    attempt: number;
+  } | null;
 }
 
 export const uploadCreatorVideo = async (formData: FormData) => {

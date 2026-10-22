@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+import { redis } from '../lib/redis.js';
 import { minioClient as storageClient } from '../lib/storage.js';
 import { publishToQueue } from '../lib/rabbitmq.js';
 import { prisma } from '../lib/prisma.js';
@@ -28,6 +30,8 @@ export class VideoService {
       },
     );
 
+    const jobId = randomUUID();
+
     // 2. Persist record in PostgreSQL
     const video = await prisma.video.create({
       data: {
@@ -36,15 +40,27 @@ export class VideoService {
         creatorId,
         status: 'PENDING',
         rawPath: rawObjectPath,
+        processingJobId: jobId,
       },
     });
 
     // 3. Publish job to RabbitMQ queue
-    await publishToQueue(env.QUEUE_NAME, {
-      videoId,
-      creatorId,
-      rawPath: rawObjectPath,
-    });
+    try {
+      await publishToQueue(env.QUEUE_NAME, {
+        videoId,
+        creatorId,
+        rawPath: rawObjectPath,
+        jobId,
+        attempt: 1,
+      });
+    } catch (error) {
+      // Do not report an upload as queued when RabbitMQ is unavailable.
+      await prisma.video.update({
+        where: { id: videoId },
+        data: { status: 'FAILED', processingError: 'Queue publish failed' },
+      });
+      throw error;
+    }
 
     return video;
   }
@@ -86,6 +102,16 @@ export class VideoService {
         thumbnailPath: true,
         createdAt: true,
         updatedAt: true,
+        durationSeconds: true,
+        width: true,
+        height: true,
+        videoCodec: true,
+        fileSizeBytes: true,
+        bitrate: true,
+        audioChannels: true,
+        processingJobId: true,
+        processingAttempts: true,
+        processingError: true,
       },
     });
   }
@@ -112,20 +138,43 @@ export class VideoService {
       );
     }
 
-    // 2. Reset video status to PENDING and reset progress
-    const updatedVideo = await prisma.video.update({
-      where: { id: videoId },
+    // Only FAILED jobs may be retried. Atomic transition stops concurrent retries
+    // from launching duplicate encoders or restarting a READY video.
+    if (video.status !== 'FAILED')
+      throw new Error('Conflict: Only FAILED videos can be retried');
+    const jobId = randomUUID();
+    const changed = await prisma.video.updateMany({
+      where: { id: videoId, creatorId, status: 'FAILED' },
       data: {
         status: 'PENDING',
+        processingJobId: jobId,
+        processingLeaseUntil: null,
+        processingAttempts: 0,
+        processingError: null,
       },
     });
-
-    // 3. Re-publish processing job to RabbitMQ queue
-    await publishToQueue(env.QUEUE_NAME, {
-      videoId: video.id,
-      creatorId: video.creatorId,
-      rawPath: video.rawPath,
+    if (changed.count !== 1)
+      throw new Error('Conflict: Video already re-queued');
+    const updatedVideo = await prisma.video.findUniqueOrThrow({
+      where: { id: videoId },
     });
+    try {
+      await publishToQueue(env.QUEUE_NAME, {
+        videoId,
+        creatorId: video.creatorId,
+        rawPath: video.rawPath,
+        jobId,
+        attempt: 1,
+      });
+    } catch (error) {
+      await prisma.video.updateMany({
+        where: { id: videoId, processingJobId: jobId, status: 'PENDING' },
+        data: { status: 'FAILED', processingError: 'Failed to re-queue' },
+      });
+      throw error;
+    }
+    // Redis is an optional progress cache and must never undo a confirmed job.
+    await redis.del(`video:progress:${videoId}`).catch(() => {});
 
     return updatedVideo;
   }
@@ -200,6 +249,7 @@ export class VideoService {
     await prisma.video.delete({
       where: { id: videoId },
     });
+    await redis.del(`video:progress:${videoId}`).catch(() => {});
 
     return { success: true };
   }

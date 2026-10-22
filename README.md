@@ -130,6 +130,13 @@ corepack pnpm run dev:worker
 
 # Terminal 3 — Web
 corepack pnpm run dev:web
+
+# Build: Api, Web, Worker
+
+pnpm --filter api build
+pnpm --filter worker build
+pnpm --filter web build
+
 ```
 
 Local web: http://localhost:5173

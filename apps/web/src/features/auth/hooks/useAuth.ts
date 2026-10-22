@@ -37,7 +37,6 @@ export const useLogin = () => {
       const message =
         error.response?.data?.message || 'Invalid login credentials';
       toast.error(message);
-      console.log(error);
     },
   });
 };

@@ -14,7 +14,11 @@ vi.mock('fs-extra', () => ({
 vi.mock('@ffmpeg-installer/ffmpeg', () => ({
   default: { path: '/test/ffmpeg' },
 }));
-import { extractThumbnail, transcodeToHLS } from './ffmpeg.service';
+import {
+  extractThumbnail,
+  transcodeToHLS,
+  selectHlsVariants,
+} from './ffmpeg.service';
 
 function succeedImmediately() {
   vi.mocked(spawn).mockImplementation(() => {
@@ -39,11 +43,20 @@ describe('FFmpeg media pipeline', () => {
       expect.arrayContaining(['-ss', '0.5', '-i', path.resolve('source.mp4')]),
     );
   });
-  it('makes two variants, independently maps the first optional audio stream, and creates a master', async () => {
+  it('makes three variants for 1080p input, independently maps optional audio, and creates a master', async () => {
     succeedImmediately();
-    const output = await transcodeToHLS('source.mp4', 'hls-output');
+    const output = await transcodeToHLS('source.mp4', 'hls-output', {
+      width: 1920,
+      height: 1080,
+      durationSeconds: 4,
+      videoCodec: 'h264',
+      fileSizeBytes: 1024,
+      bitrate: null,
+      audioChannels: 2,
+      hasAudio: true,
+    });
     expect(output).toBe(path.join('hls-output', 'master.m3u8'));
-    expect(spawn).toHaveBeenCalledTimes(2);
+    expect(spawn).toHaveBeenCalledTimes(3);
     for (const invocation of vi.mocked(spawn).mock.calls) {
       const args = invocation[1] as string[];
       expect(args).toEqual(
@@ -62,6 +75,37 @@ describe('FFmpeg media pipeline', () => {
       expect.stringContaining('1/manifest.m3u8'),
       'utf8',
     );
+    expect(fs.writeFile).toHaveBeenCalledWith(
+      output,
+      expect.stringContaining('2/manifest.m3u8'),
+      'utf8',
+    );
+  });
+  it('caps variants without ever upscaling 360p, 720p or portrait sources', () => {
+    expect(selectHlsVariants({ width: 640, height: 360 })).toHaveLength(1);
+    expect(selectHlsVariants({ width: 1280, height: 720 })).toHaveLength(2);
+    expect(selectHlsVariants({ width: 1920, height: 1080 })).toHaveLength(3);
+    for (const source of [
+      { width: 640, height: 360 },
+      { width: 1280, height: 720 },
+      { width: 1080, height: 1920 },
+    ]) {
+      for (const variant of selectHlsVariants(source)) {
+        expect(variant.width).toBeLessThanOrEqual(source.width);
+        expect(variant.height).toBeLessThanOrEqual(source.height);
+      }
+    }
+  });
+  it('preserves native quality for ultrawide 1280x544 and does not invent 720p height', () => {
+    const variants = selectHlsVariants({ width: 1280, height: 544 });
+    expect(variants.map(({ width, height }) => [width, height])).toEqual([
+      [1280, 544],
+      [854, 362],
+    ]);
+    expect(variants.map((v) => v.label)).toEqual(['544p', '362p']);
+    expect(variants.every((v) => v.width <= 1280 && v.height <= 544)).toBe(
+      true,
+    );
   });
   it('surfaces failed FFmpeg exit code', async () => {
     vi.mocked(spawn).mockImplementation(() => {
@@ -70,8 +114,17 @@ describe('FFmpeg media pipeline', () => {
       queueMicrotask(() => proc.emit('close', 1));
       return proc;
     });
-    await expect(transcodeToHLS('source.mp4', 'hls-output')).rejects.toThrow(
-      'FFmpeg exited with 1',
-    );
+    await expect(
+      transcodeToHLS('source.mp4', 'hls-output', {
+        width: 1920,
+        height: 1080,
+        durationSeconds: 4,
+        videoCodec: 'h264',
+        fileSizeBytes: 1024,
+        bitrate: null,
+        audioChannels: 2,
+        hasAudio: true,
+      }),
+    ).rejects.toThrow('FFmpeg exited with 1');
   });
 });
