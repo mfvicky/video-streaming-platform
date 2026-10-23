@@ -5,6 +5,7 @@ import { publishToQueue } from '../lib/rabbitmq.js';
 import { prisma } from '../lib/prisma.js';
 import { env } from '../config/env.js';
 import path from 'node:path';
+import { createVideoWhere, type VideoFilterParams } from './video-filters.js';
 
 export class VideoService {
   async uploadAndEnqueueVideo(
@@ -90,9 +91,12 @@ export class VideoService {
     );
   }
 
-  async getVideosByCreatorId(creatorId: string) {
+  async getVideosByCreatorId(
+    creatorId: string,
+    filters: VideoFilterParams = {},
+  ) {
     return await prisma.video.findMany({
-      where: { creatorId },
+      where: createVideoWhere(filters, creatorId),
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
@@ -112,6 +116,8 @@ export class VideoService {
         processingJobId: true,
         processingAttempts: true,
         processingError: true,
+        viewCount: true,
+        downloadCount: true,
       },
     });
   }
@@ -151,6 +157,8 @@ export class VideoService {
         processingLeaseUntil: null,
         processingAttempts: 0,
         processingError: null,
+        processingStartedAt: null,
+        processedAt: null,
       },
     });
     if (changed.count !== 1)

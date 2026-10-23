@@ -21,6 +21,7 @@ export const HomePage: React.FC = () => {
   } = useInfiniteVideoFeed(12);
 
   const [selectedStreamUrl, setSelectedStreamUrl] = useState<string>('');
+  const [selectedVideoId, setSelectedVideoId] = useState<string>('');
   const [selectedThumbnailUrl, setSelectedThumbnailUrl] = useState<string>('');
   const [isPlayingTitle, setIsPlayingTitle] = useState<string>('');
   const [loadingVideoId, setLoadingVideoId] = useState<string | null>(null);
@@ -63,6 +64,7 @@ export const HomePage: React.FC = () => {
 
       if (streamRes.status === 'fulfilled' && streamRes.value?.success) {
         setSelectedStreamUrl(streamRes.value.streamUrl);
+        setSelectedVideoId(videoId);
         setIsPlayingTitle(title || 'Now Playing');
 
         // Scroll smooth to player position or top of main section
@@ -97,6 +99,7 @@ export const HomePage: React.FC = () => {
 
   const handleClosePlayer = () => {
     setSelectedStreamUrl('');
+    setSelectedVideoId('');
     setSelectedThumbnailUrl('');
     setIsPlayingTitle('');
   };
@@ -187,6 +190,7 @@ export const HomePage: React.FC = () => {
               <HlsPlayer
                 src={selectedStreamUrl}
                 poster={selectedThumbnailUrl}
+                videoId={selectedVideoId}
               />
             </div>
           </div>

@@ -13,7 +13,11 @@ export const uploadVideoMiddleware = multer({
   storage,
   limits: { fileSize: 1024 * 1024 * 1024, files: 1 },
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype.startsWith('video/')) cb(null, true);
+    if (
+      file.mimetype.startsWith('video/') ||
+      /\.(mp4|mov|mkv|webm|avi)$/i.test(file.originalname)
+    )
+      cb(null, true);
     else cb(new Error('Only video files are allowed'));
   },
 });

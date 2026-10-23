@@ -11,8 +11,13 @@ import {
   getHlsAssetController,
   getThumbnailAssetController,
   getVideoProgressController,
-} from '../controllers/video.controller';
-import { authenticateJWT } from '../middlewares/auth.middleware';
+} from '../controllers/video.controller.js';
+import { authenticateJWT } from '../middlewares/auth.middleware.js';
+import {
+  recordVideoView,
+  downloadOriginalVideo,
+  issueDownloadTicket,
+} from '../controllers/analytics.controller.js';
 
 const router = Router();
 
@@ -200,6 +205,11 @@ router.get('/thumbnail/:videoId', getThumbnailUrlController);
  *         description: Unauthorized
  */
 router.get('/creator', authenticateJWT, getCreatorVideosController);
+// Ownership-checked, streamed original. NEVER expose the raw MinIO object URL.
+router.post('/:videoId/download-ticket', authenticateJWT, issueDownloadTicket);
+router.get('/:videoId/download', downloadOriginalVideo);
+// Play-event analytics: public feed can be watched anonymously.
+router.post('/:videoId/view', recordVideoView);
 
 /**
  * @openapi

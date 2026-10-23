@@ -121,7 +121,11 @@ export const CreatorStudioPage: React.FC = () => {
             </div>
 
             {streamUrl ? (
-              <HlsPlayer src={streamUrl} poster={thumbnailUrl} />
+              <HlsPlayer
+                src={streamUrl}
+                poster={thumbnailUrl}
+                videoId={activeVideoId}
+              />
             ) : (
               <div className="w-full aspect-video bg-slate-950 border border-slate-800/80 rounded-xl flex flex-col items-center justify-center gap-3 text-slate-500">
                 <svg

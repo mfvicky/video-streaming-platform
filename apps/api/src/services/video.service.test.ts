@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // 1. Load infrastructure mocks FIRST
-import { prismaMock } from '../__mocks__/infrastructure';
+import { prismaMock, redisMock } from '../__mocks__/infrastructure';
 
 // Mock the internal prisma client module used by video.service.ts
 vi.mock('../lib/prisma', () => ({
@@ -20,10 +20,6 @@ vi.mock('../lib/storage', () => ({
   },
 }));
 
-vi.mock('../lib/redis', () => ({
-  redis: { del: vi.fn().mockResolvedValue(1) },
-}));
-
 vi.mock('../lib/rabbitmq', () => ({
   publishToQueue: vi.fn(),
 }));
@@ -31,13 +27,14 @@ vi.mock('../lib/rabbitmq', () => ({
 // 3. Import service & mocked modules AFTER mocks are registered
 import { VideoService, videoService } from './video.service';
 import { minioClient as storageClient } from '../lib/storage';
-import { publishToQueue } from '../lib/rabbitmq.js';
+import { publishToQueue } from '../lib/rabbitmq';
 
 describe('VideoService Unit Tests', () => {
   let instance: VideoService;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    redisMock.del.mockResolvedValue(1);
     instance = new VideoService();
   });
 
@@ -108,6 +105,17 @@ describe('VideoService Unit Tests', () => {
       expect(result).toHaveProperty('id');
       expect(result.status).toBe('PENDING');
       expect(result.title).toBe(title);
+
+      // A second upload must not overwrite the first object's storage key.
+      const second = await instance.uploadAndEnqueueVideo(
+        creatorId,
+        'Another video',
+        mockFile,
+      );
+      expect(second.rawPath).not.toBe(result.rawPath);
+      expect(second.rawPath).toMatch(
+        new RegExp(`^raw/${creatorId}/vid_.*\\.mp4$`),
+      );
     });
   });
 
@@ -214,6 +222,8 @@ describe('VideoService Unit Tests', () => {
           processingJobId: true,
           processingAttempts: true,
           processingError: true,
+          viewCount: true,
+          downloadCount: true,
         },
       });
       expect(result).toEqual(mockVideos);
@@ -255,6 +265,8 @@ describe('VideoService Unit Tests', () => {
           processingLeaseUntil: null,
           processingAttempts: 0,
           processingError: null,
+          processingStartedAt: null,
+          processedAt: null,
         },
       });
       expect(publishToQueue).toHaveBeenCalledWith('video_processing_queue', {
@@ -265,6 +277,7 @@ describe('VideoService Unit Tests', () => {
         attempt: 1,
       });
       expect(result.status).toBe('PENDING');
+      expect(redisMock.del).toHaveBeenCalledWith(`video:progress:${videoId}`);
     });
 
     it('should throw error if video does not exist', async () => {
@@ -368,6 +381,7 @@ describe('VideoService Unit Tests', () => {
         where: { id: videoId },
       });
       expect(result).toEqual({ success: true });
+      expect(redisMock.del).toHaveBeenCalledWith(`video:progress:${videoId}`);
     });
 
     it('should gracefully handle MinIO errors when deleting raw, thumbnail, or HLS objects', async () => {

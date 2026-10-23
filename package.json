@@ -28,7 +28,13 @@
     "db:migrate": "pnpm --filter @app/db exec prisma migrate dev",
     "db:generate": "pnpm --filter @app/db exec prisma generate",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "build": "pnpm --filter @app/shared build && pnpm --filter @app/db build && pnpm --filter api build && pnpm --filter worker build && pnpm --filter web build",
+    "build:shared": "pnpm --filter @app/shared build",
+    "build:db": "pnpm --filter @app/db build",
+    "build:api": "pnpm --filter api build",
+    "build:worker": "pnpm --filter worker build",
+    "build:web": "pnpm --filter web build"
   },
   "lint-staged": {
     "*.{js,ts,jsx,tsx}": [

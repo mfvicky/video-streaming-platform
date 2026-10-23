@@ -53,11 +53,10 @@ export const transcodeToHLS = async (
   metadata: VideoMetadata,
   onProgress?: (percent: number) => Promise<void>,
 ): Promise<string> => {
-  const variants = selectHlsVariants(metadata)
-  // TEMP: Disable 1080p transcoding
-  .filter((v) => v.width <= 1280 && v.height <= 720)
-  .map((v, index) => ({ ...v, index }));
-  
+  // The profile selector already caps renditions at source resolution.
+  // Keep the 1080p variant when the original video supports it.
+  const variants = selectHlsVariants(metadata);
+
   for (const [index, variant] of variants.entries()) {
     const folder = path.resolve(outputDir, String(variant.index));
     await fs.ensureDir(folder);

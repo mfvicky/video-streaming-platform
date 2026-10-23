@@ -190,6 +190,13 @@ corepack pnpm run format:check
 corepack pnpm run prepare                  # Install Husky Git hooks
 ```
 
+### admin permision
+
+```bash
+docker compose exec postgres psql -U app -d app_db -c \
+"UPDATE \"User\" SET role = 'ADMIN' WHERE email = 'adminVicky@videostream.com' RETURNING id, email, role;"
+```
+
 ## Video Pipeline Verification
 
 1. Open http://localhost:3001 and log in as a creator.

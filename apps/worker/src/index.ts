@@ -71,6 +71,8 @@ async function claim(
         video.status === 'PENDING' ? { increment: 1 } : undefined,
       processingLeaseUntil: new Date(Date.now() + LEASE_MS),
       processingError: null,
+      processingStartedAt: video.status === 'PENDING' ? new Date() : undefined,
+      processedAt: null,
     },
   });
   return claimed.count === 1 ? 'claimed' : 'skip';
@@ -112,9 +114,7 @@ async function processVideo(payload: VideoProcessingPayload): Promise<void> {
   try {
     await fs.ensureDir(tempRoot);
 
-    tempDir = await fs.mkdtemp(
-      path.join(tempRoot, 'video-worker-')
-    );
+    tempDir = await fs.mkdtemp(path.join(tempRoot, 'video-worker-'));
 
     logger.info({ tempDir }, 'Worker temp directory created');
   } catch (err) {
@@ -231,6 +231,7 @@ async function processVideo(payload: VideoProcessingPayload): Promise<void> {
         thumbnailPath: thumbnailKey,
         processingLeaseUntil: null,
         processingError: null,
+        processedAt: new Date(),
       },
     });
     if (changed.count === 1)

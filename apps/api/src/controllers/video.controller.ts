@@ -232,7 +232,10 @@ export const getCreatorVideosController = async (
       });
     }
 
-    const videos = await videoService.getVideosByCreatorId(creatorId);
+    const videos = await videoService.getVideosByCreatorId(
+      creatorId,
+      req.query,
+    );
     // One Redis round trip for the list. Cache data is optional; database remains authoritative.
     let progressValues: Array<string | null> = videos.map(() => null);
     try {

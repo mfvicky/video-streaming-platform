@@ -4,6 +4,7 @@ import { HomePage } from '../features/home/pages/HomePage';
 import { LoginPage } from '../features/auth/pages/LoginPage';
 import { RegisterPage } from '../features/auth/pages/RegisterPage';
 import { CreatorStudioPage } from '../features/creator/pages/CreatorStudioPage';
+import { AdminDashboardPage } from '../features/admin/pages/AdminDashboardPage';
 import { PrivacyPolicyPage } from '../features/home/pages/PrivacyPolicyPage';
 import { TermsOfServicePage } from '../features/home/pages/TermsOfServicePage';
 
@@ -64,6 +65,9 @@ export const AppRoutes: React.FC = () => {
         <Route path="/creator" element={<CreatorStudioPage />} />
       </Route>
 
+      <Route element={<ProtectedLayout allowedRoles={['ADMIN']} />}>
+        <Route path="/admin" element={<AdminDashboardPage />} />
+      </Route>
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

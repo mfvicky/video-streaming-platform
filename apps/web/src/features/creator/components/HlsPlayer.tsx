@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
+import { recordVideoView } from '../api/creator.api';
 
 interface HlsPlayerProps {
   src: string;
   poster?: string;
+  videoId?: string;
 }
 
 interface QualityLevel {
@@ -12,16 +14,13 @@ interface QualityLevel {
   bitrate: number;
 }
 
-export const HlsPlayer: React.FC<HlsPlayerProps> = ({ src, poster }) => (
-  <HlsPlayerContent
-    key={JSON.stringify([src, poster])}
-    src={src}
-    poster={poster}
-  />
-);
-
-const HlsPlayerContent: React.FC<HlsPlayerProps> = ({ src, poster }) => {
+const HlsPlayerContent: React.FC<HlsPlayerProps> = ({
+  src,
+  poster,
+  videoId,
+}) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const recordedViewForId = useRef<string | null>(null);
   const hlsRef = useRef<Hls | null>(null);
 
   const [levels, setLevels] = useState<QualityLevel[]>([]);
@@ -33,13 +32,7 @@ const HlsPlayerContent: React.FC<HlsPlayerProps> = ({ src, poster }) => {
   const [hasStartedPlaying, setHasStartedPlaying] = useState<boolean>(false);
   const [posterError, setPosterError] = useState<boolean>(false);
 
-  // useEffect(() => {
-  //   setHasStartedPlaying(false);
-  //   setPosterError(false);
-  //   setPlaybackError('');
-  //   setLevels([]);
-  //   setCurrentLevel(-1);
-  // }, [src, poster]);
+  
 
   useEffect(() => {
     const video = videoRef.current;
@@ -80,6 +73,16 @@ const HlsPlayerContent: React.FC<HlsPlayerProps> = ({ src, poster }) => {
     }
   }, [src, poster]);
 
+  const handleActualPlay = () => {
+    setHasStartedPlaying(true);
+    if (videoId && recordedViewForId.current !== videoId) {
+      recordedViewForId.current = videoId;
+      void recordVideoView(videoId).catch(() => {
+        recordedViewForId.current = null;
+      });
+    }
+  };
+
   const handleStartPlay = () => {
     const video = videoRef.current;
     if (!video) return;
@@ -105,7 +108,7 @@ const HlsPlayerContent: React.FC<HlsPlayerProps> = ({ src, poster }) => {
           ref={videoRef}
           controls={!showCustomOverlay}
           poster={hasValidPoster ? poster : undefined}
-          onPlay={() => setHasStartedPlaying(true)}
+          onPlay={handleActualPlay}
           onError={() =>
             setPlaybackError('Video playback failed. Please try another video.')
           }
@@ -158,11 +161,10 @@ const HlsPlayerContent: React.FC<HlsPlayerProps> = ({ src, poster }) => {
             <button
               type="button"
               onClick={() => handleQualityChange(-1)}
-              className={`px-3 py-1 rounded-md text-xs font-semibold transition ${
-                currentLevel === -1
+              className={`px-3 py-1 rounded-md text-xs font-semibold transition ${currentLevel === -1
                   ? 'bg-blue-600 text-white'
                   : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
-              }`}
+                }`}
             >
               Auto
             </button>
@@ -171,11 +173,10 @@ const HlsPlayerContent: React.FC<HlsPlayerProps> = ({ src, poster }) => {
                 type="button"
                 key={lvl.id}
                 onClick={() => handleQualityChange(lvl.id)}
-                className={`px-3 py-1 rounded-md text-xs font-semibold transition ${
-                  currentLevel === lvl.id
+                className={`px-3 py-1 rounded-md text-xs font-semibold transition ${currentLevel === lvl.id
                     ? 'bg-blue-600 text-white'
                     : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
-                }`}
+                  }`}
               >
                 {lvl.height ? `${lvl.height}p` : `Level ${lvl.id}`}
               </button>
@@ -186,3 +187,16 @@ const HlsPlayerContent: React.FC<HlsPlayerProps> = ({ src, poster }) => {
     </div>
   );
 };
+
+export const HlsPlayer: React.FC<HlsPlayerProps> = (props) => (
+  <HlsPlayerContent
+    key={JSON.stringify([
+      props.src,
+      props.poster ?? '',
+      props.videoId ?? '',
+    ])}
+    {...props}
+  />
+);
+
+

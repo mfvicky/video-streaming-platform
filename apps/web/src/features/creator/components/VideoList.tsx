@@ -4,6 +4,8 @@ import {
   getMyVideos,
   retryVideoProcessingApi,
   deleteVideoApi,
+  getOriginalDownloadTicket,
+  type VideoFilters,
   type CreatorVideo,
 } from '../api/creator.api';
 
@@ -20,6 +22,9 @@ export const VideoList: React.FC<VideoListProps> = ({
   refreshKey,
 }) => {
   const [videos, setVideos] = useState<CreatorVideo[]>([]);
+  const [filters, setFilters] = useState<VideoFilters>({});
+  const [debouncedFilters, setDebouncedFilters] =
+    useState<VideoFilters>(filters);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [retryingVideoIds, setRetryingVideoIds] = useState<Set<string>>(
     new Set(),
@@ -28,9 +33,16 @@ export const VideoList: React.FC<VideoListProps> = ({
     new Set(),
   );
 
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedFilters(filters), 350);
+    return () => clearTimeout(timeout);
+  }, [filters]);
   const fetchVideos = useCallback(async () => {
     try {
-      const data = await getMyVideos();
+      const active = Object.values(debouncedFilters).some(Boolean)
+        ? debouncedFilters
+        : undefined;
+      const data = await getMyVideos(active);
       setVideos(data || []);
     } catch (error) {
       console.error('Failed to fetch creator videos:', error);
@@ -38,14 +50,17 @@ export const VideoList: React.FC<VideoListProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [debouncedFilters]);
 
   useEffect(() => {
     let isMounted = true;
 
     const loadData = async () => {
       try {
-        const data = await getMyVideos();
+        const active = Object.values(debouncedFilters).some(Boolean)
+          ? debouncedFilters
+          : undefined;
+        const data = await getMyVideos(active);
         if (isMounted) {
           setVideos(data || []);
         }
@@ -66,7 +81,7 @@ export const VideoList: React.FC<VideoListProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [refreshKey]);
+  }, [refreshKey, debouncedFilters]);
 
   useEffect(() => {
     const hasPendingVideos = videos.some(
@@ -81,6 +96,21 @@ export const VideoList: React.FC<VideoListProps> = ({
 
     return () => clearInterval(interval);
   }, [videos, fetchVideos]);
+
+  const handleDownload = async (videoId: string) => {
+    try {
+      const url = await getOriginalDownloadTicket(videoId);
+      // Browser streams via the API; no 1GB Blob allocated in JavaScript memory.
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.rel = 'noreferrer';
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+    } catch {
+      toast.error('Download unavailable or not authorized');
+    }
+  };
 
   const handleRetry = async (videoId: string) => {
     setRetryingVideoIds((prev) => new Set(prev).add(videoId));
@@ -284,6 +314,102 @@ export const VideoList: React.FC<VideoListProps> = ({
         </button>
       </div>
 
+      <div
+        className="grid grid-cols-2 lg:grid-cols-4 gap-2"
+        aria-label="Video filters"
+      >
+        <input
+          aria-label="Search videos"
+          placeholder="Search titles"
+          value={filters.search || ''}
+          onChange={(e) =>
+            setFilters((f) => ({ ...f, search: e.target.value }))
+          }
+          className="bg-slate-950 border border-slate-700 text-white rounded p-2 text-sm col-span-2"
+        />
+        <select
+          aria-label="Filter status"
+          value={filters.status || ''}
+          onChange={(e) =>
+            setFilters((f) => ({ ...f, status: e.target.value }))
+          }
+          className="bg-slate-950 border border-slate-700 text-white rounded p-2 text-sm"
+        >
+          <option value="">All statuses</option>
+          {['PENDING', 'PROCESSING', 'READY', 'FAILED'].map((status) => (
+            <option key={status}>{status}</option>
+          ))}
+        </select>
+        <select
+          aria-label="Filter resolution"
+          value={filters.resolution || ''}
+          onChange={(e) =>
+            setFilters((f) => ({ ...f, resolution: e.target.value }))
+          }
+          className="bg-slate-950 border border-slate-700 text-white rounded p-2 text-sm"
+        >
+          <option value="">All resolutions</option>
+          <option value="1080">1080p+</option>
+          <option value="720">720–1079p</option>
+          <option value="480">480–719p</option>
+          <option value="under480">Below 480p</option>
+        </select>
+        <label className="text-xs text-slate-400">
+          From date
+          <input
+            aria-label="Uploaded from"
+            type="date"
+            value={filters.from || ''}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, from: e.target.value }))
+            }
+            className="w-full mt-1 bg-slate-950 border border-slate-700 text-white rounded p-2"
+          />
+        </label>
+        <label className="text-xs text-slate-400">
+          To date
+          <input
+            aria-label="Uploaded to"
+            type="date"
+            value={filters.to || ''}
+            onChange={(e) => setFilters((f) => ({ ...f, to: e.target.value }))}
+            className="w-full mt-1 bg-slate-950 border border-slate-700 text-white rounded p-2"
+          />
+        </label>
+        <label className="text-xs text-slate-400">
+          Min duration (seconds)
+          <input
+            aria-label="Minimum duration"
+            type="number"
+            min="0"
+            value={filters.minDuration || ''}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, minDuration: e.target.value }))
+            }
+            className="w-full mt-1 bg-slate-950 border border-slate-700 text-white rounded p-2"
+          />
+        </label>
+        <label className="text-xs text-slate-400">
+          Max duration (seconds)
+          <input
+            aria-label="Maximum duration"
+            type="number"
+            min="0"
+            value={filters.maxDuration || ''}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, maxDuration: e.target.value }))
+            }
+            className="w-full mt-1 bg-slate-950 border border-slate-700 text-white rounded p-2"
+          />
+        </label>
+      </div>
+      <button
+        type="button"
+        className="text-xs text-slate-400 hover:text-white"
+        onClick={() => setFilters({})}
+      >
+        Clear filters
+      </button>
       {isLoading ? (
         <div className="py-8 text-center text-sm text-slate-500 animate-pulse">
           Loading videos...
@@ -335,6 +461,13 @@ export const VideoList: React.FC<VideoListProps> = ({
                       {video.processingError}
                     </p>
                   )}
+                  <p className="text-xs text-slate-500">
+                    Views {video.viewCount ?? 0} · Downloads{' '}
+                    {video.downloadCount ?? 0}
+                    {video.durationSeconds
+                      ? ` · ${Math.round(video.durationSeconds)}s`
+                      : ''}
+                  </p>
                   {video.width && video.height && (
                     <p className="text-xs text-slate-400">
                       {video.width}×{video.height} ·{' '}
@@ -353,6 +486,14 @@ export const VideoList: React.FC<VideoListProps> = ({
                 <div className="flex items-center gap-2 shrink-0">
                   {getStatusBadge(video.status)}
                   {renderActionButton(video)}
+                  <button
+                    type="button"
+                    onClick={() => handleDownload(video.id)}
+                    className="px-2 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-200 hover:bg-slate-700"
+                    title="Download original video"
+                  >
+                    Download
+                  </button>
 
                   {/* Delete Button */}
                   <button
