@@ -26,7 +26,10 @@ export interface VideoFeedResponse {
   };
 }
 
-export const fetchVideoFeed = async (page = 1, limit = 10): Promise<VideoFeedResponse> => {
+export const fetchVideoFeed = async (
+  page = 1,
+  limit = 10,
+): Promise<VideoFeedResponse> => {
   const response = await apiClient.get<VideoFeedResponse>('/video/feed', {
     params: { page, limit },
   });

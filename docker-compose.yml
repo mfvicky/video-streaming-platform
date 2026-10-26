@@ -1,170 +1,192 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: dev_postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "${POSTGRES_PORT}:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+    ports: ['${POSTGRES_PORT:-5433}:5432']
+    volumes: [postgres_data:/var/lib/postgresql/data]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
       interval: 5s
       timeout: 5s
-      retries: 5
-
+      retries: 15
   redis:
-    image: redis:alpine
-    container_name: dev_redis
+    image: redis:7-alpine
     restart: unless-stopped
-    ports:
-      - "${REDIS_PORT}:6379"
-    volumes:
-      - redis_data:/data
+    ports: ['${REDIS_PORT:-6379}:6379']
+    volumes: [redis_data:/data]
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
-      timeout: 5s
-      retries: 5
-
+      retries: 15
   rabbitmq:
     image: rabbitmq:3-management-alpine
-    container_name: dev_rabbitmq
     restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
     ports:
-      - "${RABBITMQ_PORT}:5672"
-      - "${RABBITMQ_MANAGEMENT_PORT}:15672"
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
+      - '${RABBITMQ_PORT:-5672}:5672'
+      - '${RABBITMQ_MANAGEMENT_PORT:-15672}:15672'
+    volumes: [rabbitmq_data:/var/lib/rabbitmq]
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test:
+        - CMD-SHELL
+        - rabbitmq-diagnostics -q check_running && rabbitmq-diagnostics -q check_port_listener 5672 && rabbitmq-diagnostics -q check_port_connectivity
       interval: 10s
-      timeout: 5s
-      retries: 5
+      timeout: 15s
+      retries: 20
+      start_period: 45s
 
   minio:
-    image: quay.io/minio/minio:latest
-    container_name: dev_minio
+    # image: quay.io/minio/minio:latest
+    # 12 September 2026 https://www.stablebuild.com/blog/minio-images-disappeared-from-docker-hub?utm_source=chatgpt.com
+    # Note: so i am using an alternative image from docker.io/pgsty/silo which is a fork of minio that is still maintained and available on docker hub
+    image: docker.io/pgsty/silo:RELEASE.2026-10-18T00-00-00Z
     restart: unless-stopped
-    command: server /data --console-address ":${MINIO_CONSOLE_PORT}"
+    command: server /data --address ":9000" --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     ports:
-      - "${MINIO_API_PORT}:${MINIO_API_PORT}"
-      - "${MINIO_CONSOLE_PORT}:${MINIO_CONSOLE_PORT}"
-    volumes:
-      - minio_data:/data
+      - '${MINIO_API_PORT:-9000}:9000'
+      - '${MINIO_CONSOLE_PORT:-9001}:9001'
+    volumes: [minio_data:/data]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${MINIO_API_PORT}/minio/health/live"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
+      test: ['CMD', 'silo', 'healthcheck', 'ready']
+      interval: 10s
+      retries: 15
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: builder
+    environment:
+      DATABASE_URL: 'postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public'
+    command:
+      ['pnpm', '--filter', '@app/db', 'exec', 'prisma', 'migrate', 'deploy']
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
   api:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
-    container_name: dev_api
     restart: unless-stopped
-    ports:
-      - "${API_PORT}:3000"
+    ports: ['${API_PORT:-3000}:3000']
     environment:
-      NODE_ENV: development
-      PORT: 3000
-      CORS_ORIGIN: ${CORS_ORIGIN}
-      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public"
-      REDIS_URL: "redis://redis:6379"
-      REDIS_HOST: "redis"
-      REDIS_PORT: 6379
-      RABBITMQ_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672"
-      MINIO_ENDPOINT: "minio"
-      MINIO_PORT: ${MINIO_API_PORT}
+      NODE_ENV: production
+      PORT: '3000'
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3001}
+      DATABASE_URL: 'postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public'
+      REDIS_URL: redis://redis:6379
+      REDIS_HOST: redis
+      REDIS_PORT: '6379'
+      RABBITMQ_URL: 'amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672'
+      QUEUE_NAME: video_processing_queue
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: '9000'
+      MINIO_USE_SSL: 'false'
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET_NAME: videos
       JWT_SECRET: ${JWT_SECRET}
       REFRESH_SECRET: ${REFRESH_SECRET}
-      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS}
-      RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS}
-      LOG_LEVEL: ${LOG_LEVEL}
+      # Local HTTP development; set COOKIE_SECURE=true behind HTTPS.
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      RSA_PUBLIC_KEY: ${RSA_PUBLIC_KEY}
+      RSA_PRIVATE_KEY: ${RSA_PRIVATE_KEY}
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-900000}
+      RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-300}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
       minio:
         condition: service_healthy
-
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 10s
+      start_period: 90s
+      retries: 10
   worker:
     build:
       context: .
       dockerfile: apps/worker/Dockerfile
-    container_name: dev_worker
     restart: unless-stopped
     environment:
-      NODE_ENV: development
-      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public"
-      REDIS_URL: "redis://redis:6379"
-      REDIS_HOST: "redis"
-      REDIS_PORT: 6379
-      RABBITMQ_URL: "amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672"
-      MINIO_ENDPOINT: "minio"
-      MINIO_PORT: ${MINIO_API_PORT}
+      NODE_ENV: production
+      DATABASE_URL: 'postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public'
+      REDIS_HOST: redis
+      REDIS_PORT: '6379'
+      RABBITMQ_URL: 'amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672'
+      QUEUE_NAME: video_processing_queue
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: '9000'
+      MINIO_USE_SSL: 'false'
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
-      LOG_LEVEL: ${LOG_LEVEL}
+      MINIO_BUCKET_NAME: videos
+      FFMPEG_PATH: ffmpeg
+      FFPROBE_PATH: ffprobe
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
       minio:
         condition: service_healthy
-
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-    container_name: dev_web
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3000/api}
+        VITE_RSA_PUBLIC_KEY: ${RSA_PUBLIC_KEY}
     restart: unless-stopped
-    ports:
-      - "${WEB_PORT:-3001}:3000"
-    environment:
-      NODE_ENV: development
-      NEXT_PUBLIC_API_URL: "http://localhost:${API_PORT}"
+    ports: ['${WEB_PORT:-3001}:80']
     depends_on:
-      - api
-
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: dev_pgadmin
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1/']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+  adminer:
+    image: adminer:latest
     restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@app.com
-      PGADMIN_DEFAULT_PASSWORD: admin
     ports:
-      - "8080:80"
+      - '127.0.0.1:8080:8080'
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
 
   redisinsight:
     image: redis/redisinsight:latest
-    container_name: dev_redisinsight
     restart: unless-stopped
     ports:
-      - "5540:5540"
-
+      - '127.0.0.1:5540:5540'
+    volumes:
+      - redisinsight_data:/data
 volumes:
   postgres_data:
   redis_data:
   rabbitmq_data:
   minio_data:
+  redisinsight_data:

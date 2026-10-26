@@ -1,39 +1,38 @@
-import axios from 'axios';
+import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 
-export const apiClient = axios.create({
-  baseURL: `${import.meta.env.VITE_API_URL}/v1`,
-  withCredentials: true,
-});
+const baseURL = `${import.meta.env.VITE_API_URL}/v1`;
+export const apiClient = axios.create({ baseURL, withCredentials: true });
+const refreshClient = axios.create({ baseURL, withCredentials: true });
+interface RetryConfig extends InternalAxiosRequestConfig { _retry?: boolean }
+let refreshInFlight: Promise<void> | null = null;
 
-// Request interceptor: Attach JWT and Request Correlation ID
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('accessToken');
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
-    console.log('Attached JWT to request headers', config.headers);
-  }
-  
-  // Attach unique Request ID for log tracing
-  config.headers['X-Request-ID'] = uuidv4();
+  // HttpOnly cookies are automatically sent by the browser.
+  config.headers.set('X-Request-ID', uuidv4());
   return config;
 });
 
-// Response interceptor: Handle Unauthorized (401) & Forbidden (403) responses globally
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
-    const status = error.response?.status;
-    
-    // Redirect to login if token is expired (401) or invalid/forbidden (403)
-    if (status === 401 || status === 403) {
-      localStorage.removeItem('accessToken');
-      
-      // Avoid infinite redirects if already on the login page
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
+  async (error: AxiosError) => {
+    const original = error.config as RetryConfig | undefined;
+    const url = original?.url ?? '';
+    if (error.response?.status !== 401 || !original || original._retry ||
+        /^\/auth\/(login|register|refresh|logout)(?:\?|$)/.test(url)) {
+      return Promise.reject(error);
     }
-    return Promise.reject(error);
-  }
+    original._retry = true;
+    try {
+      if (!refreshInFlight) {
+        refreshInFlight = refreshClient.post('/auth/refresh').then(() => undefined)
+          .finally(() => { refreshInFlight = null; });
+      }
+      await refreshInFlight;
+      return apiClient(original);
+    } catch {
+      localStorage.removeItem('user'); // UI-only metadata, never a credential.
+      return Promise.reject(error);
+    }
+  },
 );

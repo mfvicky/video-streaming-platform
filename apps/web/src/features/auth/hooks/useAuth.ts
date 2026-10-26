@@ -1,4 +1,5 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { sessionQueryKey } from './useSession';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { AxiosError } from 'axios';
@@ -13,14 +14,16 @@ export interface ApiResponse<T> {
 
 export const useLogin = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  return useMutation<ApiResponse<AuthResponse>, AxiosError<{ message?: string }>, LoginInput>({
-    mutationFn: (data: LoginInput) =>
-      authApi.login(data) as unknown as Promise<ApiResponse<AuthResponse>>,
+  return useMutation<
+    ApiResponse<AuthResponse>,
+    AxiosError<{ message?: string }>,
+    LoginInput
+  >({
+    mutationFn: (data: LoginInput) => authApi.login(data),
     onSuccess: (response) => {
-      console.log('Login successful, received access token:', response);
-      const token = response.data.accessToken;
-      localStorage.setItem('accessToken', token);
+      queryClient.setQueryData(sessionQueryKey, response.data.user);
       localStorage.setItem('user', JSON.stringify(response.data.user));
       toast.success('Welcome back to StreamVerse!');
 
@@ -31,9 +34,9 @@ export const useLogin = () => {
       }
     },
     onError: (error) => {
-      const message = error.response?.data?.message || 'Invalid login credentials';
+      const message =
+        error.response?.data?.message || 'Invalid login credentials';
       toast.error(message);
-      console.log(error);
     },
   });
 };

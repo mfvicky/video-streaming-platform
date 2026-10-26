@@ -1,15 +1,32 @@
 import { Router } from 'express';
-import { uploadVideoMiddleware } from '../middlewares/upload.middleware';
-import { 
-  uploadVideoController, 
-  getStreamUrlController, 
-  getThumbnailUrlController, 
-  getVideoFeed, 
+import { uploadVideoMiddleware } from '../middlewares/upload.middleware.js';
+import {
+  uploadVideoController,
+  getStreamUrlController,
+  getThumbnailUrlController,
+  getVideoFeed,
   getCreatorVideosController,
   retryVideoProcessingController,
-  deleteVideoController
-} from '../controllers/video.controller';
-import { authenticateJWT } from '../middlewares/auth.middleware';
+  resumeVideoProcessingController,
+  deleteVideoController,
+  getHlsAssetController,
+  getThumbnailAssetController,
+  getVideoProgressController,
+} from '../controllers/video.controller.js';
+import { authenticateJWT } from '../middlewares/auth.middleware.js';
+import {
+  recordVideoView,
+  downloadOriginalVideo,
+  issueDownloadTicket,
+} from '../controllers/analytics.controller.js';
+
+import {
+  startMultipartController,
+  multipartStatusController,
+  multipartPartController,
+  completeMultipartController,
+  cancelMultipartController,
+} from '../controllers/multipart-upload.controller.js';
 
 const router = Router();
 
@@ -49,7 +66,7 @@ const router = Router();
  *           type: string
  *           format: date-time
  *           example: "2026-10-05T12:00:00.000Z"
- * 
+ *
  *     StreamUrlResponse:
  *       type: object
  *       properties:
@@ -57,7 +74,7 @@ const router = Router();
  *           type: string
  *           format: uri
  *           example: "http://localhost:9000/videos/hls/vid_123/master.m3u8?X-Amz-Algorithm=..."
- * 
+ *
  *     ThumbnailUrlResponse:
  *       type: object
  *       properties:
@@ -66,7 +83,7 @@ const router = Router();
  *           format: uri
  *           nullable: true
  *           example: "http://localhost:9000/videos/thumbnails/vid_123.jpg?X-Amz-Algorithm=..."
- * 
+ *
  * tags:
  *   - name: Video Management
  *     description: Video uploading, streaming, feed retrieval, and processing lifecycle operations
@@ -109,7 +126,36 @@ const router = Router();
  *       401:
  *         description: Unauthorized - Invalid or missing JWT
  */
-router.post('/upload', authenticateJWT, uploadVideoMiddleware.single('video'), uploadVideoController);
+router.post(
+  '/upload',
+  authenticateJWT,
+  uploadVideoMiddleware.single('video'),
+  uploadVideoController,
+);
+
+// Bounded multipart chunk requests, with server-side authorization on EVERY operation.
+// The old /upload remains supported for existing clients.
+router.post('/upload-sessions', authenticateJWT, startMultipartController);
+router.get(
+  '/upload-sessions/:sessionId',
+  authenticateJWT,
+  multipartStatusController,
+);
+router.put(
+  '/upload-sessions/:sessionId/parts/:partNumber',
+  authenticateJWT,
+  multipartPartController,
+);
+router.post(
+  '/upload-sessions/:sessionId/complete',
+  authenticateJWT,
+  completeMultipartController,
+);
+router.delete(
+  '/upload-sessions/:sessionId',
+  authenticateJWT,
+  cancelMultipartController,
+);
 
 /**
  * @openapi
@@ -138,7 +184,9 @@ router.post('/upload', authenticateJWT, uploadVideoMiddleware.single('video'), u
  *       404:
  *         description: Video not found or HLS stream unavailable
  */
-router.get('/stream/:videoId', authenticateJWT, getStreamUrlController);
+router.get('/stream/:videoId', getStreamUrlController);
+router.get('/hls/:videoId/*asset', getHlsAssetController);
+router.get('/image/:videoId', getThumbnailAssetController);
 
 /**
  * @openapi
@@ -167,7 +215,7 @@ router.get('/stream/:videoId', authenticateJWT, getStreamUrlController);
  *       404:
  *         description: Thumbnail not found
  */
-router.get('/thumbnail/:videoId', authenticateJWT, getThumbnailUrlController);
+router.get('/thumbnail/:videoId', getThumbnailUrlController);
 
 /**
  * @openapi
@@ -190,6 +238,11 @@ router.get('/thumbnail/:videoId', authenticateJWT, getThumbnailUrlController);
  *         description: Unauthorized
  */
 router.get('/creator', authenticateJWT, getCreatorVideosController);
+// Ownership-checked, streamed original. NEVER expose the raw MinIO object URL.
+router.post('/:videoId/download-ticket', authenticateJWT, issueDownloadTicket);
+router.get('/:videoId/download', downloadOriginalVideo);
+// Play-event analytics: public feed can be watched anonymously.
+router.post('/:videoId/view', recordVideoView);
 
 /**
  * @openapi
@@ -220,7 +273,14 @@ router.get('/creator', authenticateJWT, getCreatorVideosController);
  *       404:
  *         description: Video not found
  */
+router.get('/progress/:videoId', authenticateJWT, getVideoProgressController);
+
 router.post('/retry/:videoId', authenticateJWT, retryVideoProcessingController);
+router.post(
+  '/resume/:videoId',
+  authenticateJWT,
+  resumeVideoProcessingController,
+);
 
 /**
  * @openapi

@@ -1,19 +1,23 @@
 import multer from 'multer';
+import os from 'node:os';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 
-// Store chunks in memory before streaming to MinIO
-const storage = multer.memoryStorage();
+// Multer streams uploads to local temporary disk instead of allocating 1 GB in V8 heap.
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, os.tmpdir()),
+  filename: (_req, _file, cb) => cb(null, `video-upload-${randomUUID()}.tmp`),
+});
 
 export const uploadVideoMiddleware = multer({
   storage,
-  limits: {
-    fileSize: 1024 * 1024 * 1024, // 1 GB max limit
-  },
+  limits: { fileSize: 1024 * 1024 * 1024, files: 1 },
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype.startsWith('video/')) {
-        console.log('runn1')
+    if (
+      file.mimetype.startsWith('video/') ||
+      /\.(mp4|mov|mkv|webm|avi)$/i.test(file.originalname)
+    )
       cb(null, true);
-    } else {
-      cb(new Error('Only video files are allowed'));
-    }
+    else cb(new Error('Only video files are allowed'));
   },
 });

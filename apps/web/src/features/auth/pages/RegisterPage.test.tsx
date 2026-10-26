@@ -23,7 +23,7 @@ describe('RegisterPage Component', () => {
       'min-h-screen',
       'flex',
       'items-center',
-      'justify-center'
+      'justify-center',
     );
   });
 });

@@ -13,7 +13,7 @@ export const App: React.FC = () => {
       <BrowserRouter>
         <AppRoutes />
       </BrowserRouter>
-      
+
       {/* Toastify Configuration */}
       <ToastContainer
         position="bottom-right"

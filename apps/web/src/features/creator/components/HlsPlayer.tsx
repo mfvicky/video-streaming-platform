@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
+import { recordVideoView } from '../api/creator.api';
 
 interface HlsPlayerProps {
   src: string;
   poster?: string;
+  videoId?: string;
 }
 
 interface QualityLevel {
@@ -12,27 +14,23 @@ interface QualityLevel {
   bitrate: number;
 }
 
-export const HlsPlayer: React.FC<HlsPlayerProps> = ({ src, poster }) => {
+const HlsPlayerContent: React.FC<HlsPlayerProps> = ({
+  src,
+  poster,
+  videoId,
+}) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const recordedViewForId = useRef<string | null>(null);
   const hlsRef = useRef<Hls | null>(null);
 
   const [levels, setLevels] = useState<QualityLevel[]>([]);
   const [currentLevel, setCurrentLevel] = useState<number>(-1); // -1 is Auto
 
   // Track the previous source to reset state when stream or poster changes
-  const [prevSrc, setPrevSrc] = useState<string>(src);
-  const [prevPoster, setPrevPoster] = useState<string | undefined>(poster);
+  const [playbackError, setPlaybackError] = useState<string>('');
 
   const [hasStartedPlaying, setHasStartedPlaying] = useState<boolean>(false);
   const [posterError, setPosterError] = useState<boolean>(false);
-
-  // Derive resets during render if props changed
-  if (src !== prevSrc || poster !== prevPoster) {
-    setPrevSrc(src);
-    setPrevPoster(poster);
-    setHasStartedPlaying(false);
-    setPosterError(false);
-  }
 
   useEffect(() => {
     const video = videoRef.current;
@@ -47,12 +45,19 @@ export const HlsPlayer: React.FC<HlsPlayerProps> = ({ src, poster }) => {
       hls.loadSource(src);
       hls.attachMedia(video);
 
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (data.fatal)
+          setPlaybackError('Unable to load video stream. Please try again.');
+      });
+
       hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
-        const availableLevels: QualityLevel[] = data.levels.map((level, index) => ({
-          id: index,
-          height: level.height,
-          bitrate: level.bitrate,
-        }));
+        const availableLevels: QualityLevel[] = data.levels.map(
+          (level, index) => ({
+            id: index,
+            height: level.height,
+            bitrate: level.bitrate,
+          }),
+        );
 
         setLevels(availableLevels);
       });
@@ -65,6 +70,16 @@ export const HlsPlayer: React.FC<HlsPlayerProps> = ({ src, poster }) => {
       video.src = src;
     }
   }, [src, poster]);
+
+  const handleActualPlay = () => {
+    setHasStartedPlaying(true);
+    if (videoId && recordedViewForId.current !== videoId) {
+      recordedViewForId.current = videoId;
+      void recordVideoView(videoId).catch(() => {
+        recordedViewForId.current = null;
+      });
+    }
+  };
 
   const handleStartPlay = () => {
     const video = videoRef.current;
@@ -91,7 +106,10 @@ export const HlsPlayer: React.FC<HlsPlayerProps> = ({ src, poster }) => {
           ref={videoRef}
           controls={!showCustomOverlay}
           poster={hasValidPoster ? poster : undefined}
-          onPlay={() => setHasStartedPlaying(true)}
+          onPlay={handleActualPlay}
+          onError={() =>
+            setPlaybackError('Video playback failed. Please try another video.')
+          }
           onClick={(e) => e.stopPropagation()}
           className="w-full h-full object-contain bg-black"
         />
@@ -117,7 +135,10 @@ export const HlsPlayer: React.FC<HlsPlayerProps> = ({ src, poster }) => {
               className="relative z-10 w-16 h-16 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center shadow-2xl transition-transform duration-300 group-hover:scale-110"
               aria-label="Play Video"
             >
-              <svg className="w-8 h-8 fill-current translate-x-0.5" viewBox="0 0 24 24">
+              <svg
+                className="w-8 h-8 fill-current translate-x-0.5"
+                viewBox="0 0 24 24"
+              >
                 <path d="M8 5v14l11-7z" />
               </svg>
             </button>
@@ -125,6 +146,11 @@ export const HlsPlayer: React.FC<HlsPlayerProps> = ({ src, poster }) => {
         )}
       </div>
 
+      {playbackError && (
+        <p role="alert" className="px-4 py-2 text-red-300">
+          {playbackError}
+        </p>
+      )}
       {/* Quality Switcher Bar */}
       {levels.length > 0 && (
         <div className="flex items-center justify-between px-4 py-2 bg-neutral-900 text-white text-sm">
@@ -161,3 +187,10 @@ export const HlsPlayer: React.FC<HlsPlayerProps> = ({ src, poster }) => {
     </div>
   );
 };
+
+export const HlsPlayer: React.FC<HlsPlayerProps> = (props) => (
+  <HlsPlayerContent
+    key={JSON.stringify([props.src, props.poster ?? '', props.videoId ?? ''])}
+    {...props}
+  />
+);

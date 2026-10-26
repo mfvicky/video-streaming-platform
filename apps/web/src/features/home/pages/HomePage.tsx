@@ -4,7 +4,10 @@ import { Footer } from '../../../components/layout/Footer';
 import { useInfiniteVideoFeed } from '../../feed/hooks/useVideoFeed';
 import { VideoCard } from '../../feed/components/VideoCard';
 import { HlsPlayer } from '../../creator/components/HlsPlayer';
-import { getVideoStreamUrl, getVideoThumbnailUrl } from '../../creator/api/creator.api';
+import {
+  getVideoStreamUrl,
+  getVideoThumbnailUrl,
+} from '../../creator/api/creator.api';
 import type { FeedVideo } from '../../feed/api/feed.api';
 
 export const HomePage: React.FC = () => {
@@ -18,6 +21,7 @@ export const HomePage: React.FC = () => {
   } = useInfiniteVideoFeed(12);
 
   const [selectedStreamUrl, setSelectedStreamUrl] = useState<string>('');
+  const [selectedVideoId, setSelectedVideoId] = useState<string>('');
   const [selectedThumbnailUrl, setSelectedThumbnailUrl] = useState<string>('');
   const [isPlayingTitle, setIsPlayingTitle] = useState<string>('');
   const [loadingVideoId, setLoadingVideoId] = useState<string | null>(null);
@@ -29,10 +33,16 @@ export const HomePage: React.FC = () => {
   const videos: FeedVideo[] = useMemo(() => {
     if (!data?.pages) return [];
     return data.pages.flatMap((page) => {
-      if ('data' in page && Array.isArray((page as { data: FeedVideo[] }).data)) {
+      if (
+        'data' in page &&
+        Array.isArray((page as { data: FeedVideo[] }).data)
+      ) {
         return (page as { data: FeedVideo[] }).data;
       }
-      if ('videos' in page && Array.isArray((page as { videos: FeedVideo[] }).videos)) {
+      if (
+        'videos' in page &&
+        Array.isArray((page as { videos: FeedVideo[] }).videos)
+      ) {
         return (page as { videos: FeedVideo[] }).videos;
       }
       if (Array.isArray(page)) {
@@ -54,12 +64,16 @@ export const HomePage: React.FC = () => {
 
       if (streamRes.status === 'fulfilled' && streamRes.value?.success) {
         setSelectedStreamUrl(streamRes.value.streamUrl);
+        setSelectedVideoId(videoId);
         setIsPlayingTitle(title || 'Now Playing');
 
         // Scroll smooth to player position or top of main section
         setTimeout(() => {
           if (playerRef.current) {
-            playerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            playerRef.current.scrollIntoView({
+              behavior: 'smooth',
+              block: 'start',
+            });
           } else {
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }
@@ -68,7 +82,10 @@ export const HomePage: React.FC = () => {
         alert('Stream URL is not ready or failed to load.');
       }
 
-      if (thumbnailRes.status === 'fulfilled' && thumbnailRes.value?.thumbnailUrl) {
+      if (
+        thumbnailRes.status === 'fulfilled' &&
+        thumbnailRes.value?.thumbnailUrl
+      ) {
         setSelectedThumbnailUrl(thumbnailRes.value.thumbnailUrl);
       } else {
         setSelectedThumbnailUrl('');
@@ -82,6 +99,7 @@ export const HomePage: React.FC = () => {
 
   const handleClosePlayer = () => {
     setSelectedStreamUrl('');
+    setSelectedVideoId('');
     setSelectedThumbnailUrl('');
     setIsPlayingTitle('');
   };
@@ -107,10 +125,12 @@ export const HomePage: React.FC = () => {
 
         <div className="relative z-10 max-w-2xl space-y-6">
           <span className="inline-flex items-center gap-2 px-3 py-1 bg-red-600/20 border border-red-500/30 rounded-full text-red-500 text-xs font-semibold uppercase tracking-wider">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" /> Live Now
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />{' '}
+            Live Now
           </span>
           <h1 className="text-5xl lg:text-6xl font-black tracking-tight text-white leading-none">
-            UNLIMITED <span className="text-red-600">STREAMS</span>, ZERO LIMITS.
+            UNLIMITED <span className="text-red-600">STREAMS</span>, ZERO
+            LIMITS.
           </h1>
           <p className="text-slate-300 text-lg">
             {featuredVideo
@@ -121,10 +141,15 @@ export const HomePage: React.FC = () => {
           <div className="flex items-center gap-4 pt-2">
             <button
               disabled={!featuredVideo || loadingVideoId === featuredVideo.id}
-              onClick={() => featuredVideo && handleSelectVideo(featuredVideo.id, featuredVideo.title)}
+              onClick={() =>
+                featuredVideo &&
+                handleSelectVideo(featuredVideo.id, featuredVideo.title)
+              }
               className="px-8 py-3.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 font-bold rounded-xl shadow-lg shadow-red-600/30 transition-all transform hover:scale-105 cursor-pointer"
             >
-              {loadingVideoId === featuredVideo?.id ? 'Loading...' : 'Watch Featured Stream'}
+              {loadingVideoId === featuredVideo?.id
+                ? 'Loading...'
+                : 'Watch Featured Stream'}
             </button>
             <a
               href="#feed"
@@ -137,7 +162,10 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* Main Section */}
-      <main id="feed" className="px-8 lg:px-16 py-12 max-w-7xl mx-auto space-y-10">
+      <main
+        id="feed"
+        className="px-8 lg:px-16 py-12 max-w-7xl mx-auto space-y-10"
+      >
         {/* Active HLS Stream Player Modal/Banner */}
         {selectedStreamUrl && (
           <div
@@ -147,7 +175,9 @@ export const HomePage: React.FC = () => {
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-                <h3 className="font-bold text-white text-lg line-clamp-1">{isPlayingTitle}</h3>
+                <h3 className="font-bold text-white text-lg line-clamp-1">
+                  {isPlayingTitle}
+                </h3>
               </div>
               <button
                 onClick={handleClosePlayer}
@@ -157,14 +187,20 @@ export const HomePage: React.FC = () => {
               </button>
             </div>
             <div className="flex justify-center">
-              <HlsPlayer src={selectedStreamUrl} poster={selectedThumbnailUrl} />
+              <HlsPlayer
+                src={selectedStreamUrl}
+                poster={selectedThumbnailUrl}
+                videoId={selectedVideoId}
+              />
             </div>
           </div>
         )}
 
         {/* Video Feed Header */}
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-white tracking-wide">Trending Content</h2>
+          <h2 className="text-2xl font-bold text-white tracking-wide">
+            Trending Content
+          </h2>
           <span className="text-xs text-slate-500 uppercase tracking-widest font-semibold">
             Status: READY
           </span>
@@ -216,7 +252,9 @@ export const HomePage: React.FC = () => {
                   disabled={isFetchingNextPage}
                   className="px-8 py-3 bg-slate-900 hover:bg-slate-800 border border-slate-700 font-semibold rounded-xl transition-all cursor-pointer disabled:opacity-50"
                 >
-                  {isFetchingNextPage ? 'Loading more streams...' : 'Load More Content'}
+                  {isFetchingNextPage
+                    ? 'Loading more streams...'
+                    : 'Load More Content'}
                 </button>
               </div>
             )}
@@ -226,8 +264,12 @@ export const HomePage: React.FC = () => {
         {/* Empty State */}
         {!isLoading && !isError && videos.length === 0 && (
           <div className="p-12 text-center bg-slate-900 border border-slate-800 rounded-2xl text-slate-400 space-y-2">
-            <p className="text-lg font-bold text-slate-300">No ready streams found</p>
-            <p className="text-xs text-slate-500">Upload a video in Creator Studio to see it listed here.</p>
+            <p className="text-lg font-bold text-slate-300">
+              No ready streams found
+            </p>
+            <p className="text-xs text-slate-500">
+              Upload a video in Creator Studio to see it listed here.
+            </p>
           </div>
         )}
       </main>

@@ -1,10 +1,42 @@
-import app from './app';
-import { env } from './config/env';
-import { logger } from './lib/logger';
-import { prisma, checkDatabaseConnection } from './lib/prisma';
-import { redis } from './lib/redis';
-import { connectRabbitMQ, closeRabbitMQ } from './lib/rabbitmq';
-import { initBuckets } from './lib/storage'; 
+import app from './app.js';
+import { env } from './config/env.js';
+import { logger } from './lib/logger.js';
+import { prisma, checkDatabaseConnection } from './lib/prisma.js';
+import { redis } from './lib/redis.js';
+import { connectRabbitMQ, closeRabbitMQ } from './lib/rabbitmq.js';
+import { initBuckets } from './lib/storage.js';
+import { purgeExpiredMultipartSessions } from './services/multipart-upload.service.js';
+
+async function connectRabbitMQWithRetry(
+  maxAttempts = 12,
+): Promise<void> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await connectRabbitMQ();
+      return;
+    } catch (error) {
+      if (attempt === maxAttempts) {
+        throw error;
+      }
+
+      const delay = Math.min(
+        1000 * 2 ** (attempt - 1),
+        10000,
+      );
+
+      logger.warn(
+        { attempt, maxAttempts, error },
+        'RabbitMQ unavailable, retrying connection',
+      );
+
+      await new Promise<void>((resolve) =>
+        setTimeout(resolve, delay),
+      );
+    }
+  }
+}
+
+
 
 async function bootstrap() {
   try {
@@ -12,15 +44,31 @@ async function bootstrap() {
     await checkDatabaseConnection();
 
     // 2. Connect RabbitMQ
-    await connectRabbitMQ();
+    await connectRabbitMQWithRetry();
 
     // 3. Initialize MinIO Buckets (Ensures 'videos' & 'thumbnails' exist)
     await initBuckets();
     logger.info('MinIO buckets initialized successfully.');
 
+    // Reclaim orphaned S3 multipart parts (24h retention). Repeats hourly.
+    await purgeExpiredMultipartSessions().catch((error) =>
+      logger.warn({ error }, 'Upload cleanup unavailable'),
+    );
+    const uploadCleanup = setInterval(
+      () => {
+        purgeExpiredMultipartSessions().catch((error) =>
+          logger.warn({ error }, 'Upload cleanup failed'),
+        );
+      },
+      60 * 60 * 1000,
+    );
+    uploadCleanup.unref();
+
     // 4. Start HTTP Server
     const server = app.listen(env.PORT, () => {
-      logger.info(`Server running on http://localhost:${env.PORT} in ${env.NODE_ENV} mode`);
+      logger.info(
+        `Server running on http://localhost:${env.PORT} in ${env.NODE_ENV} mode`,
+      );
     });
 
     // 5. Graceful Shutdown Function
@@ -48,7 +96,7 @@ async function bootstrap() {
           logger.info('RabbitMQ connection closed.');
 
           logger.info('Graceful shutdown completed. Exiting.');
-          
+
           // Give Pino stream time to flush before exiting
           setTimeout(() => process.exit(0), 100);
         } catch (err) {
@@ -68,7 +116,6 @@ async function bootstrap() {
         gracefulShutdown('SIGTERM');
       }
     });
-
   } catch (error) {
     logger.error({ error }, 'Failed to start application server');
     process.exit(1);
