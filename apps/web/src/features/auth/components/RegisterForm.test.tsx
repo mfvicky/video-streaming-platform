@@ -23,7 +23,7 @@ describe('RegisterForm Component', () => {
     render(
       <MemoryRouter>
         <RegisterForm />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
 
   it('renders all form input fields, select option, and submit button', () => {
@@ -33,7 +33,9 @@ describe('RegisterForm Component', () => {
     expect(screen.getByPlaceholderText('you@example.com')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('••••••••')).toBeInTheDocument();
     expect(screen.getByRole('combobox')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /get started/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /get started/i }),
+    ).toBeInTheDocument();
   });
 
   it('submits form with user inputs when submitted', async () => {

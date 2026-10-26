@@ -10,7 +10,7 @@ import { useRegister } from '../hooks/useAuth';
 export const RegisterForm: React.FC = () => {
   const { mutate: registerUser, isPending } = useRegister();
 
-  // Omit the generic type <RegisterFormValues> on useForm. 
+  // Omit the generic type <RegisterFormValues> on useForm.
   // Let zodResolver infer the exact input/output types from registerSchema.
   const {
     register,
@@ -30,11 +30,18 @@ export const RegisterForm: React.FC = () => {
   return (
     <div className="w-full max-w-md bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-2xl p-8 shadow-2xl relative z-10">
       <div className="text-center mb-8">
-        <Link to="/" className="text-3xl font-black text-red-600 tracking-wider">
+        <Link
+          to="/"
+          className="text-3xl font-black text-red-600 tracking-wider"
+        >
           STREAM<span className="text-white">VERSE</span>
         </Link>
-        <h2 className="text-xl font-semibold text-slate-200 mt-2">Create Your Account</h2>
-        <p className="text-sm text-slate-400">Join creators and viewers across StreamVerse</p>
+        <h2 className="text-xl font-semibold text-slate-200 mt-2">
+          Create Your Account
+        </h2>
+        <p className="text-sm text-slate-400">
+          Join creators and viewers across StreamVerse
+        </p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -71,7 +78,9 @@ export const RegisterForm: React.FC = () => {
             className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-colors"
           >
             <option value="USER">Viewer (Watch streams & interact)</option>
-            <option value="CREATOR">Creator (Upload & broadcast content)</option>
+            <option value="CREATOR">
+              Creator (Upload & broadcast content)
+            </option>
           </select>
         </div>
 
@@ -82,7 +91,10 @@ export const RegisterForm: React.FC = () => {
 
       <p className="text-center text-sm text-slate-400 mt-6">
         Already have an account?{' '}
-        <Link to="/login" className="text-red-500 hover:text-red-400 font-medium transition-colors">
+        <Link
+          to="/login"
+          className="text-red-500 hover:text-red-400 font-medium transition-colors"
+        >
           Sign In
         </Link>
       </p>

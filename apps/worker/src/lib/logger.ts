@@ -1,4 +1,3 @@
-
 import pino from 'pino';
 import path from 'path';
 import { env } from '../config/env.config';
@@ -12,9 +11,13 @@ const targets: pino.TransportTargetOptions[] = [
     target: env.NODE_ENV === 'development' ? 'pino-pretty' : 'pino/file',
     options:
       env.NODE_ENV === 'development'
-        ? { colorize: true, translateTime: 'SYS:yyyy-mm-dd HH:MM:ss', ignore: 'pid,hostname' }
+        ? {
+            colorize: true,
+            translateTime: 'SYS:yyyy-mm-dd HH:MM:ss',
+            ignore: 'pid,hostname',
+          }
         : { destination: 1 }, // stdout in production
-    level: env.LOG_LEVEL ,
+    level: env.LOG_LEVEL,
   },
   // Target 2: Local File Output (Saves JSON or formatted text to disk)
   // {
@@ -28,7 +31,7 @@ const targets: pino.TransportTargetOptions[] = [
 ];
 
 export const logger = pino({
-  level: env.LOG_LEVEL ,
+  level: env.LOG_LEVEL,
   transport: {
     targets,
   },

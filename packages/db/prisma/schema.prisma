@@ -28,6 +28,7 @@ model User {
   role          Role           @default(USER)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
+  uploadSessions UploadSession[]
   refreshTokens RefreshToken[]
   videos        Video[]
 }
@@ -47,10 +48,49 @@ model Video {
   status        VideoStatus @default(PENDING)
   rawPath       String
   thumbnailPath String?
+  // FFprobe metadata (null until the worker probes the original file).
+  durationSeconds Float?
+  width           Int?
+  height          Int?
+  videoCodec      String?
+  fileSizeBytes   Int?
+  bitrate         Int?
+  audioChannels   Int?
+  // A unique job ID prevents stale / duplicate queue messages from processing.
+  processingJobId    String?
+  processingLeaseUntil DateTime?
+  processingAttempts Int @default(0)
+  processingError    String?
+  processingStartedAt DateTime?
+  processedAt         DateTime?
+  viewCount           Int @default(0)
+  downloadCount       Int @default(0)
   creatorId     String
   creator       User        @relation(fields: [creatorId], references: [id], onDelete: Cascade)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
   @@index([creatorId])
+  @@index([creatorId, status, createdAt])
+  @@index([status, processingLeaseUntil])
+  @@index([createdAt])
+}
+// Persistent uploads allow clients to resume by session ID after browser/API restarts.
+model UploadSession {
+  id              String   @id @default(uuid())
+  creatorId       String
+  creator         User     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  videoId         String   @unique
+  title           String
+  fileName        String
+  fileSize        Int
+  contentType     String
+  rawPath         String
+  storageUploadId String
+  status          String   @default("OPEN")
+  expiresAt       DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([creatorId, status])
+  @@index([status, expiresAt])
 }

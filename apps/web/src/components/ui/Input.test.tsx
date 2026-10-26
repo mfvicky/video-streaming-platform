@@ -5,7 +5,9 @@ import { Input } from './Input';
 describe('Input Component', () => {
   it('renders input element correctly', () => {
     render(<Input placeholder="Enter your email" />);
-    expect(screen.getByPlaceholderText(/enter your email/i)).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText(/enter your email/i),
+    ).toBeInTheDocument();
   });
 
   it('accepts and changes value upon user typing', () => {

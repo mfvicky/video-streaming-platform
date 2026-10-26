@@ -4,7 +4,7 @@ import {
   registerSchema,
   loginSchema,
   refreshTokenSchema,
-} from '../schemas/auth';
+} from '../schemas/auth.js';
 
 export type UserRole = z.infer<typeof userRoleSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
@@ -18,5 +18,4 @@ export interface AuthResponse {
     name?: string | null;
     role: UserRole;
   };
-  accessToken: string;
 }

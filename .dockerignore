@@ -1,13 +1,61 @@
+# Dependencies and local build output (Docker installs/builds these itself)
 node_modules
-.git
-.gitignore
-.dockerignore
+**/node_modules
+.pnpm-store
+**/.pnpm-store
 dist
+**/dist
 build
+**/build
 .next
+**/.next
 .turbo
+**/.turbo
+*.tsbuildinfo
+
+# Secrets: Docker Compose injects environment variables; never COPY private env files
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+**/*.pem
+**/*.key
+
+# Local tooling, VCS, caches, test artifacts
+.git
+.github
+.husky
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+coverage
+**/coverage
+.vitest
+**/.vitest
+playwright-report
+test-results
 *.log
+*.log.*
 npm-debug.log*
 yarn-debug.log*
-yarn-error.log*
 pnpm-debug.log*
+
+# Generated media and temporary data
+uploads
+**/uploads
+temp
+**/temp
+tmp
+**/tmp
+hls
+**/hls
+.postgres_data
+.redis_data
+.rabbitmq_data
+.minio_data
+
+# Deliberately DO NOT ignore packages/db/prisma/migrations, pnpm-lock.yaml,
+# TypeScript sources, or scripts needed at build time.

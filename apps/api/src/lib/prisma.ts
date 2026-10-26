@@ -1,7 +1,7 @@
-import { PrismaClient } from '@app/db';
-import { logger } from './logger';
+import { prisma } from '@app/db';
+import { logger } from './logger.js';
 
-export const prisma = new PrismaClient();
+export { prisma }; // Reuse package singleton in this API process.
 
 export async function checkDatabaseConnection(): Promise<boolean> {
   try {
@@ -10,6 +10,6 @@ export async function checkDatabaseConnection(): Promise<boolean> {
     return true;
   } catch (error) {
     logger.error({ error }, 'Failed to connect to PostgreSQL');
-    return false;
+    throw error;
   }
 }

@@ -1,6 +1,6 @@
 import * as Minio from 'minio';
-import { env } from '../config/env';
-
+import { env } from '../config/env.js';
+import { logger } from './logger.js';
 export const minioClient = new Minio.Client({
   endPoint: env.MINIO_ENDPOINT,
   port: env.MINIO_PORT,
@@ -9,47 +9,28 @@ export const minioClient = new Minio.Client({
   secretKey: env.MINIO_SECRET_KEY,
 });
 
-// Auto-initialize required buckets and set public policies
 export const initBuckets = async () => {
-  // const buckets = ['videos', 'thumbnails'];
-  const buckets = ['videos'];
-
-  for (const bucket of buckets) {
-    try {
-      const exists = await minioClient.bucketExists(bucket);
-      if (!exists) {
-        await minioClient.makeBucket(bucket, 'us-east-1');
-        console.log(`[MinIO] Bucket "${bucket}" created successfully.`);
-      }
-
-      // Configure Public Read (s3:GetObject) policy for HLS streaming & assets
-      const publicReadPolicy = {
-        Version: '2012-10-17',
-        Statement: [
-          {
-            Effect: 'Allow',
-            Principal: { AWS: ['*'] },
-            Action: ['s3:GetObject'],
-            Resource: [`arn:aws:s3:::${bucket}/*`],
-          },
-        ],
-      };
-
-      await minioClient.setBucketPolicy(bucket, JSON.stringify(publicReadPolicy));
-      console.log(`[MinIO] Public read policy set successfully for bucket "${bucket}".`);
-    } catch (error) {
-      console.error(`[MinIO] Error configuring bucket "${bucket}":`, error);
+  const bucket = env.MINIO_BUCKET_NAME;
+  if (!(await minioClient.bucketExists(bucket))) {
+    await minioClient.makeBucket(bucket, 'us-east-1');
+  }
+  // Empty policy performs DELETE (including pre-existing wildcard public grants).
+  // Fail startup if privacy cannot be enforced.
+  try {
+    await minioClient.setBucketPolicy(bucket, '');
+  } catch (err: unknown) {
+    // A never-public bucket may have no policy to remove (S3 NoSuchBucketPolicy).
+    if (
+      !err ||
+      typeof err !== 'object' ||
+      !('code' in err) ||
+      err.code !== 'NoSuchBucketPolicy'
+    ) {
+      throw err;
     }
   }
-};
-
-/**
- * Generate a presigned URL for downloading/viewing assets from MinIO
- */
-export const getPresignedDownloadUrl = async (
-  bucketName: string,
-  objectName: string,
-  expirySeconds: number = 3600
-): Promise<string> => {
-  return await minioClient.presignedGetObject(bucketName, objectName, expirySeconds);
+  logger.info(
+    { bucket },
+    'Private MinIO bucket initialized; anonymous access disabled',
+  );
 };

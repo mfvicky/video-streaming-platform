@@ -4,6 +4,8 @@ import { HomePage } from '../features/home/pages/HomePage';
 import { LoginPage } from '../features/auth/pages/LoginPage';
 import { RegisterPage } from '../features/auth/pages/RegisterPage';
 import { CreatorStudioPage } from '../features/creator/pages/CreatorStudioPage';
+import { AdminDashboardPage } from '../features/admin/pages/AdminDashboardPage';
+import { useSession } from '../features/auth/hooks/useSession';
 import { PrivacyPolicyPage } from '../features/home/pages/PrivacyPolicyPage';
 import { TermsOfServicePage } from '../features/home/pages/TermsOfServicePage';
 
@@ -12,39 +14,11 @@ interface ProtectedLayoutProps {
 }
 
 const ProtectedLayout: React.FC<ProtectedLayoutProps> = ({ allowedRoles }) => {
-  const token = localStorage.getItem('accessToken');
-  const userRaw = localStorage.getItem('user');
-
-  if (!token) {
-    return <Navigate to="/login" replace />;
-  }
-
-  // If specific roles are required, validate user object and role
-  if (allowedRoles && allowedRoles.length > 0) {
-    if (!userRaw) {
-      return <Navigate to="/login" replace />;
-    }
-
-    let isAuthorized = false;
-    let isParseError = false;
-
-    try {
-      const user = JSON.parse(userRaw);
-      if (user?.role && allowedRoles.includes(user.role)) {
-        isAuthorized = true;
-      }
-    } catch {
-      isParseError = true;
-    }
-
-    if (isParseError) {
-      return <Navigate to="/login" replace />;
-    }
-
-    if (!isAuthorized) {
-      // Redirect unauthorized users to home page
-      return <Navigate to="/" replace />;
-    }
+  const { data: user, isPending, isError } = useSession();
+  if (isPending) return <div role="status">Checking session...</div>;
+  if (isError || !user) return <Navigate to="/login" replace />;
+  if (allowedRoles?.length && !allowedRoles.includes(user.role)) {
+    return <Navigate to="/" replace />;
   }
 
   return <Outlet />;
@@ -64,6 +38,9 @@ export const AppRoutes: React.FC = () => {
         <Route path="/creator" element={<CreatorStudioPage />} />
       </Route>
 
+      <Route element={<ProtectedLayout allowedRoles={['ADMIN']} />}>
+        <Route path="/admin" element={<AdminDashboardPage />} />
+      </Route>
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

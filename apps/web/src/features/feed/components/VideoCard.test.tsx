@@ -25,25 +25,35 @@ describe('VideoCard Component', () => {
   it('renders video details correctly including thumbnail, title, description, user, and date', () => {
     render(<VideoCard video={mockVideo} onSelect={mockOnSelect} />);
 
-    const img = screen.getByRole('img', { name: 'Test Video Title' }) as HTMLImageElement;
+    const img = screen.getByRole('img', {
+      name: 'Test Video Title',
+    }) as HTMLImageElement;
     expect(img).toBeInTheDocument();
     expect(img.src).toBe('https://example.com/thumbnail.jpg');
 
-    expect(screen.getByRole('heading', { level: 4, name: 'Test Video Title' })).toBeInTheDocument();
-    expect(screen.getByText('This is a test video description.')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 4, name: 'Test Video Title' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('This is a test video description.'),
+    ).toBeInTheDocument();
     expect(screen.getByText('@JohnDoe')).toBeInTheDocument();
-    expect(screen.getByText(new Date(mockVideo.createdAt).toLocaleDateString())).toBeInTheDocument();
+    expect(
+      screen.getByText(new Date(mockVideo.createdAt).toLocaleDateString()),
+    ).toBeInTheDocument();
   });
 
   it('renders "Untitled Video" fallback when video title is empty or missing', () => {
     const videoWithoutTitle = { ...mockVideo, title: '' };
     render(<VideoCard video={videoWithoutTitle} onSelect={mockOnSelect} />);
 
-    expect(screen.getByRole('heading', { level: 4, name: 'Untitled Video' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 4, name: 'Untitled Video' }),
+    ).toBeInTheDocument();
   });
 
   it('renders fallback UI when thumbnailUrl is not provided', () => {
-    const videoWithoutThumbnail = { ...mockVideo, thumbnailUrl: undefined };
+    const videoWithoutThumbnail = { ...mockVideo, thumbnailUrl: null };
     render(<VideoCard video={videoWithoutThumbnail} onSelect={mockOnSelect} />);
 
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
@@ -54,7 +64,7 @@ describe('VideoCard Component', () => {
     render(<VideoCard video={mockVideo} onSelect={mockOnSelect} />);
 
     const img = screen.getByRole('img', { name: 'Test Video Title' });
-    
+
     // Trigger image loading failure
     fireEvent.error(img);
 
@@ -66,13 +76,17 @@ describe('VideoCard Component', () => {
     const videoWithoutDesc = { ...mockVideo, description: undefined };
     render(<VideoCard video={videoWithoutDesc} onSelect={mockOnSelect} />);
 
-    expect(screen.queryByText('This is a test video description.')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('This is a test video description.'),
+    ).not.toBeInTheDocument();
   });
 
   it('triggers onSelect callback with video ID when clicked', () => {
     render(<VideoCard video={mockVideo} onSelect={mockOnSelect} />);
 
-    const cardContainer = screen.getByRole('heading', { level: 4, name: 'Test Video Title' }).closest('div.cursor-pointer');
+    const cardContainer = screen
+      .getByRole('heading', { level: 4, name: 'Test Video Title' })
+      .closest('div.cursor-pointer');
     expect(cardContainer).not.toBeNull();
 
     if (cardContainer) {

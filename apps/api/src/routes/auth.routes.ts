@@ -1,8 +1,13 @@
+import { z } from 'zod';
 import { Router } from 'express';
 import { registerSchema, loginSchema } from '@app/shared';
-import { AuthController } from '../controllers/auth.controller';
-import { validate } from '../middlewares/validate.middleware';
-import { authRateLimiter } from '../middlewares/rateLimiter.middleware';
+import { AuthController } from '../controllers/auth.controller.js';
+import { authenticateJWT } from '../middlewares/auth.middleware.js';
+import { validate } from '../middlewares/validate.middleware.js';
+import {
+  authRateLimiter,
+  refreshRateLimiter,
+} from '../middlewares/rateLimiter.middleware.js';
 
 const router = Router();
 
@@ -31,8 +36,12 @@ const router = Router();
 router.post(
   '/register',
   authRateLimiter,
-  validate(registerSchema),
-  AuthController.register
+  validate(
+    registerSchema
+      .pick({ email: true, name: true, role: true })
+      .extend({ password: z.string().min(1) }),
+  ),
+  AuthController.register,
 );
 
 /**
@@ -61,7 +70,11 @@ router.post(
   '/login',
   authRateLimiter,
   validate(loginSchema),
-  AuthController.login
+  AuthController.login,
 );
+
+router.get('/session', authenticateJWT, AuthController.session);
+router.post('/refresh', refreshRateLimiter, AuthController.refresh);
+router.post('/logout', refreshRateLimiter, AuthController.logout);
 
 export default router;

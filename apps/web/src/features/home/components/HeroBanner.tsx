@@ -16,7 +16,8 @@ export const HeroBanner: React.FC = () => {
 
       <div className="relative z-10 max-w-2xl space-y-6">
         <span className="inline-flex items-center gap-2 px-3 py-1 bg-red-600/20 border border-red-500/30 rounded-full text-red-500 text-xs font-bold uppercase tracking-wider">
-          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" /> Live Broadcast
+          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />{' '}
+          Live Broadcast
         </span>
 
         <h1 className="text-5xl lg:text-6xl font-black tracking-tight text-white leading-none">
@@ -24,7 +25,8 @@ export const HeroBanner: React.FC = () => {
         </h1>
 
         <p className="text-slate-300 text-base lg:text-lg">
-          High-bitrate low-latency video processing powered by distributed storage and real-time transcode pipelines.
+          High-bitrate low-latency video processing powered by distributed
+          storage and real-time transcode pipelines.
         </p>
 
         <div className="flex items-center gap-4 pt-2 max-w-sm">

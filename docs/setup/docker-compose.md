@@ -1,29 +1,59 @@
-# Docker Infrastructure Reference
+# Docker Compose — Local Stack
 
-The project uses Docker Compose to run local infrastructure dependencies during development.
+## 1. Services and ports
 
-## Services Overview
+| Service         | Local address                       | Expected state            |
+| --------------- | ----------------------------------- | ------------------------- |
+| Web             | http://localhost:3001               | Healthy                   |
+| API             | http://localhost:3000/api/v1/health | Healthy (HTTP 200)        |
+| PostgreSQL      | localhost:5433                      | Healthy                   |
+| Redis           | localhost:6379                      | Healthy                   |
+| RabbitMQ        | localhost:5672                      | Healthy                   |
+| RabbitMQ UI     | http://localhost:15672              | Available                 |
+| SILO object API | http://localhost:9000               | Healthy                   |
+| SILO console    | http://localhost:9001               | Available                 |
+| Adminer         | http://localhost:8080               | Running                   |
+| Redis Insight   | http://localhost:5540               | Running                   |
+| Worker          | no HTTP port                        | Running                   |
+| Migrate         | no HTTP port                        | **Exited (0)** is success |
 
-| Service        | Container Name | Default Port(s) | Description / Purpose                                                                                            |
-| :------------- | :------------- | :-------------- | :--------------------------------------------------------------------------------------------------------------- |
-| **PostgreSQL** | `dev_postgres` | `5432`          | Primary relational database for user metadata, video records, and job tracking via Prisma ORM.                   |
-| **Redis**      | `dev_redis`    | `6379`          | Key-value store for video processing status caching and job progress updates.                                    |
-| **RabbitMQ**   | `dev_rabbitmq` | `5672`, `15672` | Message broker used by `apps/api` to dispatch asynchronous FFmpeg tasks to `apps/worker`. Express UI at `15672`. |
-| **MinIO**      | `dev_minio`    | `9000`, `9001`  | S3-compatible object storage for storing raw video uploads and processed stream segments. Web console at `9001`. |
+Note: The Compose **service name remains `minio`** even though its image is the S3-compatible SILO fork.
 
----
-
-## Common Commands
-
-### Pull & Start Infrastructure
+## 2. Start and inspect
 
 ```bash
-# Pull the latest container images
-docker compose pull
-
-# Start all services in the background
+docker compose config --quiet
 docker compose up -d
+docker compose ps -a
 
-# Check status of running containers
-docker compose ps
+docker compose logs --tail=100 api worker web
 ```
+
+Build again after code changes:
+
+```bash
+docker compose up -d --build
+```
+
+## 3. Day 4 health checks
+
+- The API checks PostgreSQL, Redis, the storage bucket and RabbitMQ.
+- The web service waits for the **API to be healthy**.
+- A temporarily unhealthy API can leave web in `Created` state. When API becomes healthy:
+
+```bash
+docker compose up -d web
+```
+
+## 4. Scale workers
+
+```bash
+docker compose up -d --scale worker=2 worker
+docker compose exec rabbitmq rabbitmqctl list_queues name messages_ready messages_unacknowledged consumers
+```
+
+## 5. Protect your data
+
+`docker compose down` removes containers and the network but **keeps named volumes**. Avoid `docker compose down -v` unless you intentionally want to delete stored data.
+
+Credentials are in your local root `.env`. Do not commit or publish them.

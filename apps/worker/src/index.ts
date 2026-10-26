@@ -1,99 +1,304 @@
-import dotenv from 'dotenv';
-import path from 'path';
-import os from 'os';
+import path from 'node:path';
+import os from 'node:os';
 import fs from 'fs-extra';
 import { prisma } from '@app/db';
 import { storageClient, uploadFolderToMinio } from './lib/storage';
 import { transcodeToHLS, extractThumbnail } from './services/ffmpeg.service';
-import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
-import { consumeQueue } from './lib/rabbitmq';
+import { probeVideo } from './services/ffprobe.service';
+import { consumeQueue, publishRetry, publishDeadLetter } from './lib/rabbitmq';
+import { updateProgress } from './lib/progress';
+import { env } from './config/env.config';
+import { logger } from './lib/logger';
 
-dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
-dotenv.config({ path: path.resolve(process.cwd(), '.env') });
-
-const ffmpegExecutablePath = ffmpegInstaller.path || (ffmpegInstaller as any).default?.path;
-console.log('FFmpeg binary location:', ffmpegExecutablePath);
-
-interface VideoProcessingPayload {
+export interface VideoProcessingPayload {
   videoId: string;
   rawPath: string;
+  jobId: string;
+  attempt: number;
 }
 
-async function startWorker() {
-  console.log('Worker active. Waiting for HLS encoding tasks...');
+const MAX_ATTEMPTS = 3; // Initial attempt + two delayed retries.
+const LEASE_MS = 2 * 60 * 1000;
+const HEARTBEAT_MS = 30_000;
 
-  await consumeQueue<VideoProcessingPayload>(async (payload, msg, channel) => {
-    const { videoId, rawPath } = payload;
-    const tempDir = path.join(os.tmpdir(), 'video_worker', videoId);
-    const rawFilePath = path.join(tempDir, 'source_video.mp4');
-    const hlsOutputDir = path.join(tempDir, 'hls');
-    const thumbnailFilePath = path.join(tempDir, 'thumbnail.jpg');
+/** Atomically claim a job. READY, FAILED, stale job IDs and ordinary duplicates never re-encode. */
+async function claim(
+  payload: VideoProcessingPayload,
+): Promise<'claimed' | 'defer' | 'replay-next' | 'skip'> {
+  const { videoId, jobId, rawPath } = payload;
+  const video = await prisma.video.findUnique({ where: { id: videoId } });
+  if (!video || video.processingJobId !== jobId || video.rawPath !== rawPath)
+    return 'skip';
+  if (video.status === 'READY' || video.status === 'FAILED') return 'skip';
+  if (
+    video.status === 'PENDING' &&
+    video.processingAttempts === payload.attempt &&
+    payload.attempt < MAX_ATTEMPTS
+  )
+    return 'replay-next';
+  if (
+    video.status === 'PENDING' &&
+    video.processingAttempts !== payload.attempt - 1
+  )
+    return 'skip';
+  if (
+    video.status === 'PROCESSING' &&
+    video.processingAttempts !== payload.attempt
+  )
+    return 'skip';
+  if (
+    video.status === 'PROCESSING' &&
+    video.processingLeaseUntil &&
+    video.processingLeaseUntil > new Date()
+  )
+    return 'defer';
+  const claimed = await prisma.video.updateMany({
+    where: {
+      id: videoId,
+      processingJobId: jobId,
+      OR: [
+        { status: 'PENDING', processingAttempts: payload.attempt - 1 },
+        {
+          status: 'PROCESSING',
+          processingAttempts: payload.attempt,
+          processingLeaseUntil: { lt: new Date() },
+        },
+      ],
+    },
+    data: {
+      status: 'PROCESSING',
+      processingAttempts:
+        video.status === 'PENDING' ? { increment: 1 } : undefined,
+      processingLeaseUntil: new Date(Date.now() + LEASE_MS),
+      processingError: null,
+      processingStartedAt: video.status === 'PENDING' ? new Date() : undefined,
+      processedAt: null,
+    },
+  });
+  return claimed.count === 1 ? 'claimed' : 'skip';
+}
 
-    try {
-      // 1. Mark status as PROCESSING
-      await prisma.video.update({
-        where: { id: videoId },
-        data: { status: 'PROCESSING' },
-      });
+async function processVideo(payload: VideoProcessingPayload): Promise<void> {
+  const { videoId, rawPath, jobId } = payload;
+  if (
+    !videoId ||
+    !rawPath ||
+    !jobId ||
+    !Number.isInteger(payload.attempt) ||
+    payload.attempt < 1
+  ) {
+    await publishDeadLetter(payload, 'Invalid job payload');
+    return;
+  }
+  const claimed = await claim(payload);
+  if (claimed === 'skip') {
+    logger.info({ videoId, jobId }, 'Skipping stale or duplicate job');
+    return;
+  }
+  if (claimed === 'replay-next') {
+    // Recover a retry publication interrupted between SQL update and broker confirm.
+    await publishRetry({ ...payload, attempt: payload.attempt + 1 });
+    return;
+  }
+  if (claimed === 'defer') {
+    // A prior consumer might have crashed. Recheck once the lease can expire.
+    await publishRetry(payload);
+    return;
+  }
+  const attempt = payload.attempt;
 
-      await fs.ensureDir(tempDir);
-      await fs.ensureDir(hlsOutputDir);
+  const tempRoot = process.env.FFMPEG_TEMP_DIR || os.tmpdir();
 
-      // 2. Download raw file from MinIO
-      console.log(`Downloading ${rawPath} to local temp path...`);
-      await storageClient.fGetObject('videos', rawPath, rawFilePath);
+  let tempDir = '';
 
-      // 3. Extract Thumbnail frame from input video
-      console.log(`Extracting thumbnail for ${videoId}...`);
-      await extractThumbnail(rawFilePath, thumbnailFilePath);
+  try {
+    await fs.ensureDir(tempRoot);
 
-      // 4. Perform HLS Transcoding (Awaited)
-      console.log(`Transcoding ${videoId} to HLS...`);
-      await transcodeToHLS(rawFilePath, hlsOutputDir);
+    tempDir = await fs.mkdtemp(path.join(tempRoot, 'video-worker-'));
 
-      // 5. Upload generated thumbnail frame to MinIO
-      const thumbnailMinioKey = `thumbnails/${videoId}/thumbnail.jpg`;
-      console.log(`Uploading thumbnail for ${videoId}...`);
-      await storageClient.fPutObject('videos', thumbnailMinioKey, thumbnailFilePath, {
-        'Content-Type': 'image/jpeg',
-      });
+    logger.info({ tempDir }, 'Worker temp directory created');
+  } catch (err) {
+    logger.error({ err, videoId }, 'Could not create worker temp directory');
+    throw err;
+  }
 
-      // 6. Upload generated .m3u8 playlists & .ts chunks to MinIO
-      console.log(`Uploading HLS files for ${videoId}...`);
-      await uploadFolderToMinio('videos', `hls/${videoId}`, hlsOutputDir);
+  const rawFilePath = path.join(tempDir, 'source_video.mp4');
+  const hlsOutputDir = path.join(tempDir, 'hls');
+  const thumbnailFilePath = path.join(tempDir, 'thumbnail.jpg');
+  // While FFmpeg runs, renew the SQL lease. If a worker crashes, redeliveries
+  // will be allowed to resume after approximately two minutes.
+  const heartbeat = setInterval(() => {
+    prisma.video
+      .updateMany({
+        where: { id: videoId, processingJobId: jobId, status: 'PROCESSING' },
+        data: { processingLeaseUntil: new Date(Date.now() + LEASE_MS) },
+      })
+      .catch((err) =>
+        logger.warn({ err, videoId }, 'Unable to renew processing lease'),
+      );
+  }, HEARTBEAT_MS);
+  try {
+    await updateProgress(
+      videoId,
+      jobId,
+      'PROCESSING',
+      5,
+      'Downloading original',
+      attempt,
+    );
+    await fs.ensureDir(hlsOutputDir);
+    await storageClient.fGetObject(env.MINIO_BUCKET_NAME, rawPath, rawFilePath);
 
-      // 7. Update status in PostgreSQL to READY with thumbnailPath
-      await prisma.video.update({
-        where: { id: videoId },
+    await updateProgress(
+      videoId,
+      jobId,
+      'PROCESSING',
+      15,
+      'Reading FFprobe metadata',
+      attempt,
+    );
+    const metadata = await probeVideo(rawFilePath);
+    await prisma.video.updateMany({
+      where: { id: videoId, processingJobId: jobId, status: 'PROCESSING' },
+      data: {
+        durationSeconds: metadata.durationSeconds,
+        width: metadata.width,
+        height: metadata.height,
+        videoCodec: metadata.videoCodec,
+        fileSizeBytes: metadata.fileSizeBytes,
+        bitrate: metadata.bitrate,
+        audioChannels: metadata.audioChannels,
+      },
+    });
+
+    await updateProgress(
+      videoId,
+      jobId,
+      'PROCESSING',
+      20,
+      'Extracting thumbnail',
+      attempt,
+    );
+    await extractThumbnail(rawFilePath, thumbnailFilePath);
+    await transcodeToHLS(
+      rawFilePath,
+      hlsOutputDir,
+      metadata,
+      async (percent) => {
+        await updateProgress(
+          videoId,
+          jobId,
+          'PROCESSING',
+          20 + Math.round(percent * 0.6),
+          'Transcoding HLS',
+          attempt,
+        );
+      },
+    );
+
+    await updateProgress(
+      videoId,
+      jobId,
+      'PROCESSING',
+      85,
+      'Uploading thumbnail',
+      attempt,
+    );
+    const thumbnailKey = `thumbnails/${videoId}/thumbnail.jpg`;
+    await storageClient.fPutObject(
+      env.MINIO_BUCKET_NAME,
+      thumbnailKey,
+      thumbnailFilePath,
+      { 'Content-Type': 'image/jpeg' },
+    );
+    await updateProgress(
+      videoId,
+      jobId,
+      'PROCESSING',
+      90,
+      'Uploading HLS files',
+      attempt,
+    );
+    await uploadFolderToMinio(
+      env.MINIO_BUCKET_NAME,
+      `hls/${videoId}`,
+      hlsOutputDir,
+    );
+    const changed = await prisma.video.updateMany({
+      where: { id: videoId, processingJobId: jobId, status: 'PROCESSING' },
+      data: {
+        status: 'READY',
+        thumbnailPath: thumbnailKey,
+        processingLeaseUntil: null,
+        processingError: null,
+        processedAt: new Date(),
+      },
+    });
+    if (changed.count === 1)
+      await updateProgress(videoId, jobId, 'READY', 100, 'Complete', attempt);
+    logger.info({ videoId, jobId }, 'HLS generation completed');
+  } catch (err) {
+    const reason =
+      err instanceof Error ? err.message.slice(0, 1000) : String(err);
+    logger.error({ err, videoId, attempt }, 'Video processing failed');
+    if (attempt < MAX_ATTEMPTS) {
+      await prisma.video.updateMany({
+        where: { id: videoId, processingJobId: jobId, status: 'PROCESSING' },
         data: {
-          status: 'READY',
-          thumbnailPath: thumbnailMinioKey,
+          status: 'PENDING',
+          processingLeaseUntil: null,
+          processingError: reason,
         },
       });
-
-      console.log(`HLS Generation completed for ${videoId}`);
-
-      // ACK ONLY AFTER COMPLETE JOB FINISHES
-      channel.ack(msg);
-    } catch (error) {
-      console.error(`Transcoding failure for ${videoId}:`, error);
-
-      await prisma.video.update({
-        where: { id: videoId },
-        data: { status: 'FAILED' },
-      }).catch(() => {});
-
-      // NACK to remove from unacknowledged state (requeue: false prevents infinite retries)
-      channel.nack(msg, false, false);
-    } finally {
-      // Safely cleanup temp folder
-      try {
-        await fs.remove(tempDir);
-      } catch (cleanupError) {
-        console.error(`Failed to clean directory ${tempDir}:`, cleanupError);
-      }
+      await publishRetry({ ...payload, attempt: attempt + 1 });
+      await updateProgress(
+        videoId,
+        jobId,
+        'PENDING',
+        0,
+        `Retry scheduled (${attempt}/${MAX_ATTEMPTS})`,
+        attempt,
+        reason,
+      );
+    } else {
+      await publishDeadLetter(payload, reason); // Wait for publisher confirm before ACK.
+      await prisma.video.updateMany({
+        where: { id: videoId, processingJobId: jobId, status: 'PROCESSING' },
+        data: {
+          status: 'FAILED',
+          processingLeaseUntil: null,
+          processingError: reason,
+        },
+      });
+      await updateProgress(
+        videoId,
+        jobId,
+        'FAILED',
+        0,
+        'Permanently failed',
+        attempt,
+        reason,
+      );
     }
+  } finally {
+    clearInterval(heartbeat);
+    await fs
+      .remove(tempDir)
+      .catch((err) =>
+        logger.warn({ err, tempDir }, 'Worker temp cleanup failed'),
+      );
+  }
+}
+
+async function main() {
+  logger.info('Worker active. Waiting for HLS tasks');
+  await consumeQueue<VideoProcessingPayload>(async (payload, msg, channel) => {
+    await processVideo(payload);
+    channel.ack(msg);
   });
 }
 
-startWorker();
+main().catch((err) => {
+  logger.fatal({ err }, 'Worker crashed');
+  process.exitCode = 1;
+});

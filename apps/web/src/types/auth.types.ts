@@ -7,7 +7,6 @@ export interface User {
 
 export interface AuthData {
   user: User;
-  accessToken: string;
 }
 
 export interface AuthResponse {

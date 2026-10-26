@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { VideoList } from './VideoList';
@@ -64,7 +63,9 @@ describe('VideoList Component', () => {
   it('renders loading state initially and then displays fetched videos', async () => {
     vi.spyOn(creatorApi, 'getMyVideos').mockResolvedValueOnce(mockVideos);
 
-    render(<VideoList creatorId={mockCreatorId} onSelectVideo={mockOnSelectVideo} />);
+    render(
+      <VideoList creatorId={mockCreatorId} onSelectVideo={mockOnSelectVideo} />,
+    );
 
     expect(screen.getByText(/loading videos/i)).toBeInTheDocument();
 
@@ -82,7 +83,9 @@ describe('VideoList Component', () => {
   it('renders empty state when no videos are returned', async () => {
     vi.spyOn(creatorApi, 'getMyVideos').mockResolvedValueOnce([]);
 
-    render(<VideoList creatorId={mockCreatorId} onSelectVideo={mockOnSelectVideo} />);
+    render(
+      <VideoList creatorId={mockCreatorId} onSelectVideo={mockOnSelectVideo} />,
+    );
 
     await waitFor(() => {
       expect(screen.getByText(/no uploaded videos found/i)).toBeInTheDocument();
@@ -92,7 +95,9 @@ describe('VideoList Component', () => {
   it('triggers onSelectVideo when clicking the Preview button on a READY video', async () => {
     vi.spyOn(creatorApi, 'getMyVideos').mockResolvedValueOnce(mockVideos);
 
-    render(<VideoList creatorId={mockCreatorId} onSelectVideo={mockOnSelectVideo} />);
+    render(
+      <VideoList creatorId={mockCreatorId} onSelectVideo={mockOnSelectVideo} />,
+    );
 
     await waitFor(() => {
       expect(screen.getByText('Ready Stream')).toBeInTheDocument();
@@ -106,9 +111,13 @@ describe('VideoList Component', () => {
 
   it('handles retry video processing action', async () => {
     vi.spyOn(creatorApi, 'getMyVideos').mockResolvedValue(mockVideos);
-    vi.spyOn(creatorApi, 'retryVideoProcessingApi').mockResolvedValueOnce(undefined);
+    vi.spyOn(creatorApi, 'retryVideoProcessingApi').mockResolvedValueOnce(
+      undefined,
+    );
 
-    render(<VideoList creatorId={mockCreatorId} onSelectVideo={mockOnSelectVideo} />);
+    render(
+      <VideoList creatorId={mockCreatorId} onSelectVideo={mockOnSelectVideo} />,
+    );
 
     await waitFor(() => {
       expect(screen.getByText('Failed Stream')).toBeInTheDocument();
@@ -128,7 +137,9 @@ describe('VideoList Component', () => {
     vi.spyOn(creatorApi, 'deleteVideoApi').mockResolvedValueOnce(undefined);
     vi.mocked(window.confirm).mockReturnValueOnce(true);
 
-    render(<VideoList creatorId={mockCreatorId} onSelectVideo={mockOnSelectVideo} />);
+    render(
+      <VideoList creatorId={mockCreatorId} onSelectVideo={mockOnSelectVideo} />,
+    );
 
     await waitFor(() => {
       expect(screen.getByText('Ready Stream')).toBeInTheDocument();
@@ -138,7 +149,7 @@ describe('VideoList Component', () => {
     fireEvent.click(deleteButtons[0]);
 
     expect(window.confirm).toHaveBeenCalledWith(
-      'Are you sure you want to delete this video? This cannot be undone.'
+      'Are you sure you want to delete this video? This cannot be undone.',
     );
 
     await waitFor(() => {
@@ -152,7 +163,9 @@ describe('VideoList Component', () => {
     vi.spyOn(creatorApi, 'getMyVideos').mockResolvedValueOnce(mockVideos);
     vi.mocked(window.confirm).mockReturnValueOnce(false);
 
-    render(<VideoList creatorId={mockCreatorId} onSelectVideo={mockOnSelectVideo} />);
+    render(
+      <VideoList creatorId={mockCreatorId} onSelectVideo={mockOnSelectVideo} />,
+    );
 
     await waitFor(() => {
       expect(screen.getByText('Ready Stream')).toBeInTheDocument();

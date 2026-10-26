@@ -17,14 +17,16 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         <input
           ref={ref}
           className={`w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-colors ${
-            error ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''
+            error
+              ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+              : ''
           } ${className}`}
           {...props}
         />
         {error && <span className="text-xs text-red-500">{error}</span>}
       </div>
     );
-  }
+  },
 );
 
 Input.displayName = 'Input';

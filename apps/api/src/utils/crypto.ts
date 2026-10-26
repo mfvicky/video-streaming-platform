@@ -1,11 +1,13 @@
 import forge from 'node-forge';
-import { env } from '../config/env';
+import { env } from '../config/env.js';
 
 export const decryptPassword = (encryptedPassword: string): string => {
   try {
     // 1. Convert literal '\n' strings from .env into real newlines & strip quotes
-    const formattedPrivateKeyPem = env.RSA_PRIVATE_KEY
-      .replace(/^["']|["']$/g, '')
+    const formattedPrivateKeyPem = env.RSA_PRIVATE_KEY.replace(
+      /^["']|["']$/g,
+      '',
+    )
       .replace(/\\n/g, '\n')
       .trim();
 

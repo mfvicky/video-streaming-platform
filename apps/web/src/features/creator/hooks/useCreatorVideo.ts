@@ -1,5 +1,9 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { uploadCreatorVideo, getVideoStreamUrl, getVideoThumbnailUrl } from '../api/creator.api';
+import {
+  uploadCreatorVideo,
+  getVideoStreamUrl,
+  getVideoThumbnailUrl,
+} from '../api/creator.api';
 
 // Mutation hook for handling video upload
 export const useUploadVideo = () => {

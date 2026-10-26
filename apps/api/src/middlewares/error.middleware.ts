@@ -1,15 +1,19 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
-import { AppError } from '../utils/errors';
-import { logger } from '../lib/logger';
+import { AppError } from '../utils/errors.js';
+import { logger } from '../lib/logger.js';
 
 export const errorHandler = (
   err: Error & { status?: number; statusCode?: number },
   _req: Request,
   res: Response,
-  _next: NextFunction
+  _next: NextFunction,
 ) => {
-  logger.error(err);
+  if (err instanceof AppError && err.statusCode < 500) {
+    logger.warn({ statusCode: err.statusCode }, 'Request rejected');
+  } else {
+    logger.error(err);
+  }
 
   // Handle body-parser and other standard HTTP status errors (e.g., 413 Payload Too Large)
   const statusCode = err.status || err.statusCode;

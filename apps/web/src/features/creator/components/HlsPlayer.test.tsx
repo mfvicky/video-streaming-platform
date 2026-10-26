@@ -23,9 +23,7 @@ interface MockHlsConstructorType {
 
 // Mock hls.js using a typed constructor function declaration
 vi.mock('hls.js', () => {
-  const MockHlsConstructor = vi.fn(function (
-    this: typeof mockHlsInstance
-  ) {
+  const MockHlsConstructor = vi.fn(function (this: typeof mockHlsInstance) {
     Object.assign(this, mockHlsInstance);
     return mockHlsInstance;
   }) as unknown as MockHlsConstructorType;
@@ -43,7 +41,7 @@ vi.mock('hls.js', () => {
 // Type definition for Hls event callbacks
 type HlsEventCallback = (
   event: string,
-  data: { levels: Array<{ height: number; bitrate: number }> }
+  data: { levels: Array<{ height: number; bitrate: number }> },
 ) => void;
 
 describe('HlsPlayer Component', () => {
@@ -52,7 +50,9 @@ describe('HlsPlayer Component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    window.HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
+    window.HTMLMediaElement.prototype.play = vi
+      .fn()
+      .mockResolvedValue(undefined);
   });
 
   it('initializes Hls and attaches media when Hls is supported', () => {
@@ -62,7 +62,9 @@ describe('HlsPlayer Component', () => {
     expect(Hls).toHaveBeenCalledWith({ enableWorker: true });
 
     expect(mockHlsInstance.loadSource).toHaveBeenCalledWith(mockSrc);
-    expect(mockHlsInstance.attachMedia).toHaveBeenCalledWith(expect.any(HTMLVideoElement));
+    expect(mockHlsInstance.attachMedia).toHaveBeenCalledWith(
+      expect.any(HTMLVideoElement),
+    );
   });
 
   it('destroys Hls instance on unmount', () => {
@@ -89,7 +91,7 @@ describe('HlsPlayer Component', () => {
     render(<HlsPlayer src={mockSrc} />);
 
     const onCallback = mockHlsInstance.on.mock.calls.find(
-      (call: [string, HlsEventCallback]) => call[0] === Hls.Events.MANIFEST_PARSED
+      (call) => call[0] === Hls.Events.MANIFEST_PARSED,
     )?.[1] as HlsEventCallback | undefined;
 
     expect(onCallback).toBeDefined();
@@ -116,7 +118,9 @@ describe('HlsPlayer Component', () => {
   });
 
   it('handles poster error and hides custom overlay', () => {
-    const { container } = render(<HlsPlayer src={mockSrc} poster={mockPoster} />);
+    const { container } = render(
+      <HlsPlayer src={mockSrc} poster={mockPoster} />,
+    );
 
     // Target the hidden img element directly via container selector since alt="" sets role to "presentation"
     const hiddenImg = container.querySelector('img.hidden');
@@ -126,6 +130,8 @@ describe('HlsPlayer Component', () => {
       fireEvent.error(hiddenImg!);
     });
 
-    expect(screen.queryByRole('button', { name: /play video/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /play video/i }),
+    ).not.toBeInTheDocument();
   });
 });
