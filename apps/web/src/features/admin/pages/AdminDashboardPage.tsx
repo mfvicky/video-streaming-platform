@@ -52,10 +52,7 @@ export const AdminDashboardPage: React.FC = () => {
     let cancelled = false;
 
     const loadDashboard = () => {
-      void Promise.all([
-        fetchAdminMetrics(),
-        fetchAdminVideos(filters, page),
-      ])
+      void Promise.all([fetchAdminMetrics(), fetchAdminVideos(filters, page)])
         .then(([m, v]) => {
           if (cancelled) return;
 
@@ -69,9 +66,7 @@ export const AdminDashboardPage: React.FC = () => {
           if (cancelled) return;
 
           setError(
-            err instanceof Error
-              ? err.message
-              : 'Unable to fetch dashboard',
+            err instanceof Error ? err.message : 'Unable to fetch dashboard',
           );
         });
     };
@@ -89,7 +84,6 @@ export const AdminDashboardPage: React.FC = () => {
       clearInterval(timer);
     };
   }, [filters, page]);
-
 
   useEffect(() => {
     const timeout = setTimeout(() => {

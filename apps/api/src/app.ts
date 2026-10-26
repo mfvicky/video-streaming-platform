@@ -1,6 +1,7 @@
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 import { env } from './config/env.js';
 import { setupSwagger } from './config/swagger.js';
@@ -9,12 +10,22 @@ import { errorHandler } from './middlewares/error.middleware.js';
 import authRoutes from './routes/auth.routes.js';
 import videoRoutes from './routes/video.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import healthRoutes from './routes/health.routes.js';
 
 const app = express();
 
 // Security and Core Middlewares
 app.use(helmet());
 app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
+
+// Dedicated lightweight quota: public readiness checks must not starve normal API requests.
+const healthRateLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 120,
+  standardHeaders: false,
+  legacyHeaders: false,
+});
+app.use('/api/v1/health', healthRateLimiter, healthRoutes);
 
 // Global Rate Limiting
 app.use(globalRateLimiter);

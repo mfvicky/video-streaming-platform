@@ -105,6 +105,18 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 10s
+      start_period: 90s
+      retries: 10
   worker:
     build:
       context: .
@@ -142,7 +154,14 @@ services:
         VITE_RSA_PUBLIC_KEY: ${RSA_PUBLIC_KEY}
     restart: unless-stopped
     ports: ['${WEB_PORT:-3001}:80']
-    depends_on: [api]
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1/']
+      interval: 15s
+      timeout: 5s
+      retries: 5
   adminer:
     image: adminer:latest
     restart: unless-stopped

@@ -32,8 +32,6 @@ const HlsPlayerContent: React.FC<HlsPlayerProps> = ({
   const [hasStartedPlaying, setHasStartedPlaying] = useState<boolean>(false);
   const [posterError, setPosterError] = useState<boolean>(false);
 
-  
-
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !src) return;
@@ -161,10 +159,11 @@ const HlsPlayerContent: React.FC<HlsPlayerProps> = ({
             <button
               type="button"
               onClick={() => handleQualityChange(-1)}
-              className={`px-3 py-1 rounded-md text-xs font-semibold transition ${currentLevel === -1
+              className={`px-3 py-1 rounded-md text-xs font-semibold transition ${
+                currentLevel === -1
                   ? 'bg-blue-600 text-white'
                   : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
-                }`}
+              }`}
             >
               Auto
             </button>
@@ -173,10 +172,11 @@ const HlsPlayerContent: React.FC<HlsPlayerProps> = ({
                 type="button"
                 key={lvl.id}
                 onClick={() => handleQualityChange(lvl.id)}
-                className={`px-3 py-1 rounded-md text-xs font-semibold transition ${currentLevel === lvl.id
+                className={`px-3 py-1 rounded-md text-xs font-semibold transition ${
+                  currentLevel === lvl.id
                     ? 'bg-blue-600 text-white'
                     : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
-                  }`}
+                }`}
               >
                 {lvl.height ? `${lvl.height}p` : `Level ${lvl.id}`}
               </button>
@@ -190,13 +190,7 @@ const HlsPlayerContent: React.FC<HlsPlayerProps> = ({
 
 export const HlsPlayer: React.FC<HlsPlayerProps> = (props) => (
   <HlsPlayerContent
-    key={JSON.stringify([
-      props.src,
-      props.poster ?? '',
-      props.videoId ?? '',
-    ])}
+    key={JSON.stringify([props.src, props.poster ?? '', props.videoId ?? ''])}
     {...props}
   />
 );
-
-

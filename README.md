@@ -190,25 +190,125 @@ corepack pnpm run format:check
 corepack pnpm run prepare                  # Install Husky Git hooks
 ```
 
-### admin permision
-
-```bash
-docker compose exec postgres psql -U app -d app_db -c \
-"UPDATE \"User\" SET role = 'ADMIN' WHERE email = 'adminVicky@videostream.com' RETURNING id, email, role;"
-```
-
 ## Video Pipeline Verification
 
 1. Open http://localhost:3001 and log in as a creator.
 2. Upload a short MP4 file.
 3. Check `docker compose logs -f api worker` for encoding progress.
 4. Confirm HLS generation completes and the video plays in the browser.
-5. Optionally run the included smoke test with the uploaded video ID:
 
-## Troubleshooting
+## Local Admin Account (Development Only)
 
-- **`@app/shared` or `@app/db` missing**: Build those packages using the commands above.
-- **Missing environment variables (Zod)**: Verify `apps/api/.env` and `apps/worker/.env` for local development.
-- **Port already in use**: Stop the matching Docker app container before starting it locally.
-- **pnpm version conflict**: Use `corepack pnpm ...` (version 9.4.0).
-- **Web changes in Docker not visible**: Rebuild with `docker compose up -d --build web`. Local Vite development hot-reloads automatically.
+Public signup creates a regular `USER`. For a dedicated account registered as `admin@streamverse.com`, grant `ADMIN` only through trusted database access, then log in again:
+
+```bash
+docker compose exec postgres psql -U app -d app_db -c \
+"UPDATE \"User\" SET role = 'ADMIN' WHERE email = 'admin@streamverse.com' RETURNING id, email, role;"
+```
+
+## Step-by-step verification
+
+### Test 1 — New health endpoint
+
+```bash
+corepack pnpm --filter api exec vitest run src/routes/health.routes.test.ts
+```
+
+### check the API build:
+
+```bash
+corepack pnpm --filter api build
+```
+
+### Test 2 — Clean Docker build
+
+```bash
+# Run from your project root:
+docker compose config --quiet
+docker compose down
+docker compose build --no-cache
+docker compose up -d
+docker compose up -d web
+docker compose ps --all
+
+Expected:
+- API and Web: healthy.
+- PostgreSQL, Redis, RabbitMQ, SILO: healthy.
+- Worker: running.
+- Migrate: exited successfully with code 0.
+- Adminer and Redis Insight: running.
+
+```
+
+### Test 3 — API and Web health checks
+
+```bash
+curl -i http://localhost:3000/api/v1/health
+
+# Expected:
+{"status":"ok"}
+
+curl -I http://localhost:3001/
+
+# Expected HTTP 200.
+
+
+
+# Verify Docker health:
+docker inspect "$(docker compose ps -q api)" \
+  --format '{{.State.Health.Status}}'
+
+docker inspect "$(docker compose ps -q web)" \
+  --format '{{.State.Health.Status}}'
+```
+
+### Test 4 — RabbitMQ jobs
+
+```bash
+docker compose exec rabbitmq rabbitmqctl list_queues \
+name messages_ready messages_unacknowledged consumers
+
+#check with two worker
+docker compose up -d --scale worker=2 worker
+docker compose logs -f worker
+```
+
+### Test 5 — Full video lifecycle
+
+### Using the web application at http://localhost:3001:
+
+1. Upload two videos and verify multipart progress.
+2. Verify FFprobe metadata in PostgreSQL.
+3. Confirm thumbnail and HLS playback.
+4. Download an original video and verify it matches the uploaded file.
+5. Delete the video and confirm it disappears from the gallery and storage.
+   Verify metadata:
+
+```bash
+docker compose exec postgres psql -U app -d app_db -c \
+'SELECT id,status,width,height,"durationSeconds","videoCodec","fileSizeBytes" FROM "Video" ORDER BY "createdAt" DESC LIMIT 5;'
+```
+
+### Test 6 — Authorization and security
+
+Test Expected
+Anonymous upload 401
+Creator B deletes Creator A's video 403
+Creator B downloads Creator A's original 403
+Regular user accesses admin metrics 403
+Anonymous raw storage object 403
+Invalid login credentials 401
+Excessive login requests 429
+Normal HLS seeking No unexpected 429
+Refresh-token rotation and logout Successful
+
+### Test 7 — Existing automated suites
+
+```bash
+corepack pnpm run test:api
+corepack pnpm run test:worker
+corepack pnpm run test:web
+
+corepack pnpm run lint
+corepack pnpm run format:check
+```

@@ -5,6 +5,9 @@ import { logger } from './logger.js';
 let connection: amqp.ChannelModel | null = null;
 let channel: amqp.ConfirmChannel | null = null;
 
+export const isRabbitMQConnected = (): boolean =>
+  connection !== null && channel !== null;
+
 /** ConfirmChannel ensures a successful API response means RabbitMQ accepted the job. */
 export async function connectRabbitMQ(): Promise<void> {
   if (connection && channel) return;
