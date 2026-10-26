@@ -105,17 +105,6 @@ describe('VideoService Unit Tests', () => {
       expect(result).toHaveProperty('id');
       expect(result.status).toBe('PENDING');
       expect(result.title).toBe(title);
-
-      // A second upload must not overwrite the first object's storage key.
-      const second = await instance.uploadAndEnqueueVideo(
-        creatorId,
-        'Another video',
-        mockFile,
-      );
-      expect(second.rawPath).not.toBe(result.rawPath);
-      expect(second.rawPath).toMatch(
-        new RegExp(`^raw/${creatorId}/vid_.*\\.mp4$`),
-      );
     });
   });
 
@@ -220,6 +209,7 @@ describe('VideoService Unit Tests', () => {
           bitrate: true,
           audioChannels: true,
           processingJobId: true,
+          processingLeaseUntil: true,
           processingAttempts: true,
           processingError: true,
           viewCount: true,

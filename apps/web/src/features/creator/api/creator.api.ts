@@ -14,6 +14,7 @@ export interface CreatorVideo {
   videoCodec?: string | null;
   fileSizeBytes?: number | null;
   processingError?: string | null;
+  processingLeaseUntil?: string | null;
   viewCount?: number;
   downloadCount?: number;
   progress?: {
@@ -96,6 +97,13 @@ export const recordVideoView = async (videoId: string): Promise<void> => {
 
 export const retryVideoProcessingApi = async (videoId: string) => {
   const response = await apiClient.post(`/video/retry/${videoId}`);
+  return response.data;
+};
+
+export const resumeVideoProcessingApi = async (videoId: string) => {
+  const response = await apiClient.post(
+    `/video/resume/${encodeURIComponent(videoId)}`,
+  );
   return response.data;
 };
 

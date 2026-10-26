@@ -5,6 +5,7 @@ import { prisma, checkDatabaseConnection } from './lib/prisma.js';
 import { redis } from './lib/redis.js';
 import { connectRabbitMQ, closeRabbitMQ } from './lib/rabbitmq.js';
 import { initBuckets } from './lib/storage.js';
+import { purgeExpiredMultipartSessions } from './services/multipart-upload.service.js';
 
 async function bootstrap() {
   try {
@@ -17,6 +18,20 @@ async function bootstrap() {
     // 3. Initialize MinIO Buckets (Ensures 'videos' & 'thumbnails' exist)
     await initBuckets();
     logger.info('MinIO buckets initialized successfully.');
+
+    // Reclaim orphaned S3 multipart parts (24h retention). Repeats hourly.
+    await purgeExpiredMultipartSessions().catch((error) =>
+      logger.warn({ error }, 'Upload cleanup unavailable'),
+    );
+    const uploadCleanup = setInterval(
+      () => {
+        purgeExpiredMultipartSessions().catch((error) =>
+          logger.warn({ error }, 'Upload cleanup failed'),
+        );
+      },
+      60 * 60 * 1000,
+    );
+    uploadCleanup.unref();
 
     // 4. Start HTTP Server
     const server = app.listen(env.PORT, () => {

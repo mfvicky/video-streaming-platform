@@ -1,14 +1,17 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { VideoUploader } from './VideoUploader';
-import { uploadCreatorVideo } from '../api/creator.api';
+import { uploadResumableVideo } from '../api/multipart.api';
 
-vi.mock('../api/creator.api', () => ({ uploadCreatorVideo: vi.fn() }));
+vi.mock('../api/multipart.api', () => ({
+  MAX_FILE_BYTES: 2_147_483_647,
+  uploadResumableVideo: vi.fn(),
+}));
 
-describe('Day 3 VideoUploader', () => {
+describe('Resumable VideoUploader', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('queues multiple files and displays a progress row for each', () => {
+  it('queues multiple files with independent progress', () => {
     render(<VideoUploader onSuccess={vi.fn()} />);
     const a = new File(['one'], 'a.mp4', { type: 'video/mp4' });
     const b = new File(['two'], 'b.mp4', { type: 'video/mp4' });
@@ -24,19 +27,18 @@ describe('Day 3 VideoUploader', () => {
       '0',
     );
     expect(
-      screen.getByRole('button', { name: /Upload 2 video/i }),
+      screen.getByRole('button', { name: /Upload \/ Resume 2 video/i }),
     ).toBeInTheDocument();
   });
 
-  it('uploads each selected file with distinct titles and per-file progress', async () => {
+  it('clears successful files while preserving failed files', async () => {
     const onSuccess = vi.fn();
-    vi.mocked(uploadCreatorVideo).mockImplementation(
-      async (_data, onProgress) => {
-        onProgress?.(75);
-        return {
-          success: true,
-          data: { id: 'vid-' + Math.random().toString(36).slice(2) },
-        };
+    vi.mocked(uploadResumableVideo).mockImplementation(
+      async (file, _title, options) => {
+        options.onProgress(75);
+        if (file.name === 'second.mp4') throw new Error('Network interruption');
+        options.onProgress(100);
+        return { videoId: 'vid_first' };
       },
     );
     render(<VideoUploader onSuccess={onSuccess} />);
@@ -48,11 +50,18 @@ describe('Day 3 VideoUploader', () => {
         ],
       },
     });
-    fireEvent.click(screen.getByRole('button', { name: /Upload 2 video/i }));
-    await waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(2));
-    expect(uploadCreatorVideo).toHaveBeenCalledTimes(2);
+    fireEvent.click(
+      screen.getByRole('button', { name: /Upload \/ Resume 2 video/i }),
+    );
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith('vid_first'));
+    await waitFor(() =>
+      expect(
+        screen.queryByLabelText('Upload progress for first.mp4'),
+      ).not.toBeInTheDocument(),
+    );
     expect(
-      screen.getByLabelText('Upload progress for first.mp4'),
-    ).toHaveAttribute('aria-valuenow', '100');
+      screen.getByLabelText('Upload progress for second.mp4'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Network interruption')).toBeInTheDocument();
   });
 });

@@ -1,20 +1,20 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { uploadCreatorVideo } from '../api/creator.api';
+import { MAX_FILE_BYTES, uploadResumableVideo } from '../api/multipart.api';
 
 interface Props {
   onSuccess: (videoId: string) => void;
 }
+type State = 'queued' | 'uploading' | 'paused' | 'failed';
 interface Item {
   id: string;
   file: File;
   title: string;
-  status: 'queued' | 'uploading' | 'processing' | 'failed';
+  status: State;
   progress: number;
   error?: string;
 }
-const SIZE_LIMIT = 1024 * 1024 * 1024; // Existing API limit: 1 GiB per file.
-const MAX_CONCURRENT = 2; // Avoid launching too many simultaneous 1GB uploads.
+const MAX_CONCURRENT = 2;
 const nameWithoutExtension = (name: string) =>
   name.replace(/\.[^.]+$/, '') || 'Untitled Video';
 
@@ -23,6 +23,9 @@ export const VideoUploader: React.FC<Props> = ({ onSuccess }) => {
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const controllers = useRef(new Map<string, AbortController>());
+  const paused = useRef(new Set<string>());
   const update = useCallback((id: string, patch: Partial<Item>) => {
     setItems((previous) =>
       previous.map((item) => (item.id === id ? { ...item, ...patch } : item)),
@@ -35,13 +38,14 @@ export const VideoUploader: React.FC<Props> = ({ onSuccess }) => {
         (file.type.startsWith('video/') ||
           /\.(mp4|mov|mkv|webm|avi)$/i.test(file.name)) &&
         file.size > 0 &&
-        file.size <= SIZE_LIMIT,
+        file.size <= MAX_FILE_BYTES,
     );
-    if (valid.length !== selected.length)
-      setError(
-        'Some files were skipped (unsupported format, empty, or over 1 GiB).',
-      );
-    else setError('');
+    setError(
+      valid.length !== selected.length
+        ? 'Some files were skipped (unsupported format, empty, or over 2 GiB).'
+        : '',
+    );
+    setNotice('');
     setItems((previous) => [
       ...previous,
       ...valid.map((file) => ({
@@ -53,37 +57,57 @@ export const VideoUploader: React.FC<Props> = ({ onSuccess }) => {
       })),
     ]);
   };
-  const uploadAll = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const pause = (id: string) => {
+    paused.current.add(id);
+    controllers.current.get(id)?.abort();
+    update(id, { status: 'paused' });
+  };
+  const uploadAll = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (uploading) return;
     const remaining = items.filter(
       (item) => item.status === 'queued' || item.status === 'failed',
     );
     if (!remaining.length) return;
     setUploading(true);
+    setNotice('');
     let nextIndex = 0;
+    let succeeded = 0;
     const worker = async () => {
       while (nextIndex < remaining.length) {
         const item = remaining[nextIndex++];
+        if (paused.current.has(item.id)) continue;
         if (!item.title.trim()) {
           update(item.id, { status: 'failed', error: 'Title is required' });
           continue;
         }
-        update(item.id, { status: 'uploading', progress: 0, error: undefined });
-        const form = new FormData();
-        form.append('title', item.title.trim());
-        form.append('video', item.file);
+        const controller = new AbortController();
+        controllers.current.set(item.id, controller);
+        update(item.id, { status: 'uploading', error: undefined });
         try {
-          const response = await uploadCreatorVideo(form, (percent) =>
-            update(item.id, { progress: percent }),
+          const completed = await uploadResumableVideo(
+            item.file,
+            item.title.trim(),
+            {
+              signal: controller.signal,
+              onProgress: (percent) => update(item.id, { progress: percent }),
+            },
           );
-          if (!response?.success || !response?.data?.id)
-            throw new Error('Server did not confirm upload');
-          update(item.id, { status: 'processing', progress: 100 });
-          onSuccess(response.data.id);
+          succeeded++;
+          // Video moves to creator gallery; remove completed file from uploader.
+          setItems((previous) => previous.filter((p) => p.id !== item.id));
+          onSuccess(completed.videoId);
         } catch (err: unknown) {
-          const message = err instanceof Error ? err.message : 'Upload failed';
-          update(item.id, { status: 'failed', error: message });
+          if (controller.signal.aborted || paused.current.has(item.id)) {
+            update(item.id, { status: 'paused' });
+          } else {
+            update(item.id, {
+              status: 'failed',
+              error: err instanceof Error ? err.message : 'Upload failed',
+            });
+          }
+        } finally {
+          controllers.current.delete(item.id);
         }
       }
     };
@@ -95,6 +119,10 @@ export const VideoUploader: React.FC<Props> = ({ onSuccess }) => {
       );
     } finally {
       setUploading(false);
+      if (succeeded)
+        setNotice(
+          `${succeeded} upload(s) completed and sent for processing. The upload form is clear for those files.`,
+        );
     }
   };
   return (
@@ -104,8 +132,8 @@ export const VideoUploader: React.FC<Props> = ({ onSuccess }) => {
     >
       <h3 className="text-lg font-bold text-white">Upload Videos</h3>
       <p className="text-xs text-slate-400">
-        Choose multiple files or drop videos here. Up to two files upload
-        simultaneously; each video is processed by RabbitMQ afterwards.
+        Resumable S3 multipart uploads (8 MiB chunks). Up to two videos upload
+        at once. Re-select the same file after a reload to resume saved chunks.
       </p>
       <div
         className={`relative border-2 border-dashed ${dragging ? 'border-red-500' : 'border-slate-700'} rounded-xl bg-slate-950 p-6 text-center`}
@@ -139,12 +167,17 @@ export const VideoUploader: React.FC<Props> = ({ onSuccess }) => {
           Drop videos here or click to browse
         </p>
         <p className="text-xs text-slate-500 mt-1">
-          MP4 / MOV / MKV / WebM · Max 1 GiB each
+          MP4 / MOV / MKV / WebM / AVI · Max 2 GiB minus 1 byte
         </p>
       </div>
       {error && (
         <p role="alert" className="text-sm text-red-400">
           {error}
+        </p>
+      )}
+      {notice && (
+        <p role="status" className="text-xs text-emerald-400">
+          {notice}
         </p>
       )}
       <div className="space-y-3 max-h-72 overflow-y-auto">
@@ -158,15 +191,32 @@ export const VideoUploader: React.FC<Props> = ({ onSuccess }) => {
                 aria-label={`Title for ${item.file.name}`}
                 className="flex-1 min-w-0 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-sm text-white"
                 value={item.title}
-                disabled={item.status !== 'queued' && item.status !== 'failed'}
+                disabled={item.status === 'uploading'}
                 onChange={(e) => update(item.id, { title: e.target.value })}
               />
-              <span className="text-xs text-slate-400">
-                {item.status === 'processing'
-                  ? 'Queued for encoding'
-                  : item.status}
-              </span>
-              {!uploading && item.status !== 'uploading' && (
+              <span className="text-xs text-slate-400">{item.status}</span>
+              {item.status === 'uploading' && (
+                <button
+                  type="button"
+                  className="text-xs text-amber-400"
+                  onClick={() => pause(item.id)}
+                >
+                  Pause
+                </button>
+              )}
+              {item.status === 'paused' && (
+                <button
+                  type="button"
+                  className="text-xs text-emerald-400"
+                  onClick={() => {
+                    paused.current.delete(item.id);
+                    update(item.id, { status: 'queued' });
+                  }}
+                >
+                  Resume
+                </button>
+              )}
+              {item.status !== 'uploading' && (
                 <button
                   type="button"
                   aria-label={`Remove ${item.file.name}`}
@@ -213,7 +263,7 @@ export const VideoUploader: React.FC<Props> = ({ onSuccess }) => {
       >
         {uploading
           ? 'Uploading selected videos…'
-          : `Upload ${items.filter((item) => item.status === 'queued' || item.status === 'failed').length} video(s)`}
+          : `Upload / Resume ${items.filter((item) => item.status === 'queued' || item.status === 'failed').length} video(s)`}
       </button>
     </form>
   );

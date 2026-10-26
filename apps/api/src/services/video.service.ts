@@ -114,6 +114,7 @@ export class VideoService {
         bitrate: true,
         audioChannels: true,
         processingJobId: true,
+        processingLeaseUntil: true,
         processingAttempts: true,
         processingError: true,
         viewCount: true,
@@ -185,6 +186,65 @@ export class VideoService {
     await redis.del(`video:progress:${videoId}`).catch(() => {});
 
     return updatedVideo;
+  }
+
+  /** A stale PROCESSING job may be recovered by its owner; running jobs cannot be interrupted. */
+  async resumeStalledProcessing(videoId: string, creatorId: string) {
+    const video = await prisma.video.findUnique({ where: { id: videoId } });
+    if (!video) throw new Error('Video not found');
+    if (video.creatorId !== creatorId)
+      throw new Error('Unauthorized: Not your video');
+    if (!video.rawPath) throw new Error('Conflict: Original video is missing');
+    const now = new Date();
+    if (
+      video.status !== 'PROCESSING' ||
+      (video.processingLeaseUntil && video.processingLeaseUntil > now) ||
+      (!video.processingLeaseUntil &&
+        now.getTime() - video.updatedAt.getTime() < 120000)
+    ) {
+      throw new Error('Conflict: Job is active or not eligible to resume');
+    }
+    const jobId = randomUUID();
+    const changed = await prisma.video.updateMany({
+      where: {
+        id: videoId,
+        creatorId,
+        status: 'PROCESSING',
+        processingJobId: video.processingJobId,
+        processingLeaseUntil: video.processingLeaseUntil,
+      },
+      data: {
+        status: 'PENDING',
+        processingJobId: jobId,
+        processingLeaseUntil: null,
+        processingAttempts: 0,
+        processingError: null,
+        processedAt: null,
+        processingStartedAt: null,
+      },
+    });
+    if (changed.count !== 1)
+      throw new Error('Conflict: Job was already resumed');
+    try {
+      await publishToQueue(env.QUEUE_NAME, {
+        videoId,
+        creatorId,
+        rawPath: video.rawPath,
+        jobId,
+        attempt: 1,
+      });
+    } catch (error) {
+      await prisma.video.updateMany({
+        where: { id: videoId, processingJobId: jobId, status: 'PENDING' },
+        data: {
+          status: 'FAILED',
+          processingError: 'Failed to publish resumed job',
+        },
+      });
+      throw error;
+    }
+    await redis.del(`video:progress:${videoId}`).catch(() => {});
+    return prisma.video.findUniqueOrThrow({ where: { id: videoId } });
   }
 
   async deleteVideo(videoId: string, creatorId: string) {

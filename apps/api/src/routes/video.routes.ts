@@ -7,6 +7,7 @@ import {
   getVideoFeed,
   getCreatorVideosController,
   retryVideoProcessingController,
+  resumeVideoProcessingController,
   deleteVideoController,
   getHlsAssetController,
   getThumbnailAssetController,
@@ -18,6 +19,14 @@ import {
   downloadOriginalVideo,
   issueDownloadTicket,
 } from '../controllers/analytics.controller.js';
+
+import {
+  startMultipartController,
+  multipartStatusController,
+  multipartPartController,
+  completeMultipartController,
+  cancelMultipartController,
+} from '../controllers/multipart-upload.controller.js';
 
 const router = Router();
 
@@ -122,6 +131,30 @@ router.post(
   authenticateJWT,
   uploadVideoMiddleware.single('video'),
   uploadVideoController,
+);
+
+// Bounded multipart chunk requests, with server-side authorization on EVERY operation.
+// The old /upload remains supported for existing clients.
+router.post('/upload-sessions', authenticateJWT, startMultipartController);
+router.get(
+  '/upload-sessions/:sessionId',
+  authenticateJWT,
+  multipartStatusController,
+);
+router.put(
+  '/upload-sessions/:sessionId/parts/:partNumber',
+  authenticateJWT,
+  multipartPartController,
+);
+router.post(
+  '/upload-sessions/:sessionId/complete',
+  authenticateJWT,
+  completeMultipartController,
+);
+router.delete(
+  '/upload-sessions/:sessionId',
+  authenticateJWT,
+  cancelMultipartController,
 );
 
 /**
@@ -243,6 +276,11 @@ router.post('/:videoId/view', recordVideoView);
 router.get('/progress/:videoId', authenticateJWT, getVideoProgressController);
 
 router.post('/retry/:videoId', authenticateJWT, retryVideoProcessingController);
+router.post(
+  '/resume/:videoId',
+  authenticateJWT,
+  resumeVideoProcessingController,
+);
 
 /**
  * @openapi

@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import {
   getMyVideos,
   retryVideoProcessingApi,
+  resumeVideoProcessingApi,
   deleteVideoApi,
   getOriginalDownloadTicket,
   type VideoFilters,
@@ -26,6 +27,7 @@ export const VideoList: React.FC<VideoListProps> = ({
   const [debouncedFilters, setDebouncedFilters] =
     useState<VideoFilters>(filters);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [clockNow, setClockNow] = useState(() => Date.now());
   const [retryingVideoIds, setRetryingVideoIds] = useState<Set<string>>(
     new Set(),
   );
@@ -96,6 +98,28 @@ export const VideoList: React.FC<VideoListProps> = ({
 
     return () => clearInterval(interval);
   }, [videos, fetchVideos]);
+
+  useEffect(() => {
+    const ticker = setInterval(() => setClockNow(Date.now()), 10000);
+    return () => clearInterval(ticker);
+  }, []);
+
+  const handleResume = async (videoId: string) => {
+    setRetryingVideoIds((prev) => new Set(prev).add(videoId));
+    try {
+      await resumeVideoProcessingApi(videoId);
+      toast.info('Stalled processing restarted from the original video');
+      await fetchVideos();
+    } catch {
+      toast.error('Cannot resume: the worker may still be active');
+    } finally {
+      setRetryingVideoIds((prev) => {
+        const next = new Set(prev);
+        next.delete(videoId);
+        return next;
+      });
+    }
+  };
 
   const handleDownload = async (videoId: string) => {
     try {
@@ -271,8 +295,27 @@ export const VideoList: React.FC<VideoListProps> = ({
           </button>
         );
 
-      case 'PENDING':
       case 'PROCESSING':
+        if (
+          (video.processingLeaseUntil &&
+            new Date(video.processingLeaseUntil).getTime() <= clockNow) ||
+          (!video.processingLeaseUntil &&
+            clockNow - new Date(video.updatedAt).getTime() > 120000)
+        ) {
+          return (
+            <button
+              type="button"
+              disabled={isRetrying}
+              onClick={() => handleResume(video.id)}
+              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white"
+            >
+              {isRetrying ? 'Resuming…' : 'Resume stalled job'}
+            </button>
+          );
+        }
+        // Active worker: no manual resume action.
+        return <span className="text-xs text-slate-500">Processing...</span>;
+      case 'PENDING':
       default:
         return (
           <button

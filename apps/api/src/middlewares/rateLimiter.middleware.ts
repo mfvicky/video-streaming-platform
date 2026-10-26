@@ -46,8 +46,24 @@ const mediaRateLimiter = rateLimit({
   },
 });
 
+// Multipart uploads are bounded and authenticated. A 2GiB file needs ~256
+// chunk requests; do not let these exhaust the ordinary browsing quota.
+const uploadPartRateLimiter = rateLimit({
+  windowMs: env.RATE_LIMIT_WINDOW_MS,
+  max: 1500,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many upload chunks, try later.' },
+});
+
 // Keep the existing name used in app.ts; no other application file is needed.
 export const globalRateLimiter: RequestHandler = (req, res, next) => {
+  if (
+    req.method === 'PUT' &&
+    /^\/api\/v1\/video\/upload-sessions\/[^/]+\/parts\/\d+$/.test(req.path)
+  ) {
+    return uploadPartRateLimiter(req, res, next);
+  }
   if (isPublicMediaRequest(req)) {
     return mediaRateLimiter(req, res, next);
   }

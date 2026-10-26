@@ -7,9 +7,10 @@ interface VideoCardProps {
 }
 
 export const VideoCard: React.FC<VideoCardProps> = ({ video, onSelect }) => {
-  const [imgError, setImgError] = useState(false);
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
 
-  const showThumbnail = Boolean(video.thumbnailUrl) && !imgError;
+  const showThumbnail =
+    Boolean(video.thumbnailUrl) && failedUrl !== video.thumbnailUrl;
 
   return (
     <div
@@ -22,7 +23,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({ video, onSelect }) => {
           <img
             src={video.thumbnailUrl!}
             alt={video.title}
-            onError={() => setImgError(true)}
+            onError={() => setFailedUrl(video.thumbnailUrl)}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
         ) : (

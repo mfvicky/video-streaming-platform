@@ -134,6 +134,9 @@ export const getThumbnailAssetController = async (
       video.thumbnailPath,
     );
     res.type('image/jpeg');
+    // Public READY thumbnails may be embedded by the frontend on a different origin.
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Cache-Control', 'public, max-age=300');
     stream.on('error', () => {
       if (!res.headersSent) res.status(404);
       res.end();
@@ -371,6 +374,41 @@ export const retryVideoProcessingController = async (
               : 500,
       )
       .json({ success: false, message: error.message });
+  }
+};
+
+export const resumeVideoProcessingController = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    if (!req.user?.id)
+      return res
+        .status(401)
+        .json({ success: false, message: 'Login required' });
+    const video = await videoService.resumeStalledProcessing(
+      String(req.params.videoId),
+      req.user.id,
+    );
+    return res.json({
+      success: true,
+      message: 'Stalled video re-queued',
+      data: video,
+    });
+  } catch (error: unknown) {
+    const msg =
+      error instanceof Error ? error.message : 'Unable to resume processing';
+    return res
+      .status(
+        /Unauthorized/.test(msg)
+          ? 403
+          : /not found/.test(msg)
+            ? 404
+            : /Conflict/.test(msg)
+              ? 409
+              : 500,
+      )
+      .json({ success: false, message: msg });
   }
 };
 
