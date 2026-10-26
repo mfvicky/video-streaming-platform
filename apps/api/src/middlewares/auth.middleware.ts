@@ -29,17 +29,17 @@ export const authenticateJWT = (
 ) => {
   const authHeader = req.headers.authorization;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  const token = req.cookies?.accessToken ||
+    (authHeader?.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : undefined);
+  if (!token) {
     return res.status(401).json({
       success: false,
       message: 'Access token missing or malformed',
     });
   }
 
-  const token = authHeader.split(' ')[1];
-
   try {
-    const decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
+    const decoded = jwt.verify(token, env.JWT_SECRET, { algorithms: ['HS256'] }) as JwtPayload;
 
     // Extract user ID from 'sub' (JWT standard) or fallback to 'id'
     const userId = decoded.sub || decoded.id;

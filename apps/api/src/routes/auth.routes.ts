@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { Router } from 'express';
 import { registerSchema, loginSchema } from '@app/shared';
 import { AuthController } from '../controllers/auth.controller.js';
+import { authenticateJWT } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import {
   authRateLimiter,
@@ -72,6 +73,7 @@ router.post(
   AuthController.login,
 );
 
+router.get('/session', authenticateJWT, AuthController.session);
 router.post('/refresh', refreshRateLimiter, AuthController.refresh);
 router.post('/logout', refreshRateLimiter, AuthController.logout);
 

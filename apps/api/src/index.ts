@@ -7,13 +7,44 @@ import { connectRabbitMQ, closeRabbitMQ } from './lib/rabbitmq.js';
 import { initBuckets } from './lib/storage.js';
 import { purgeExpiredMultipartSessions } from './services/multipart-upload.service.js';
 
+async function connectRabbitMQWithRetry(
+  maxAttempts = 12,
+): Promise<void> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await connectRabbitMQ();
+      return;
+    } catch (error) {
+      if (attempt === maxAttempts) {
+        throw error;
+      }
+
+      const delay = Math.min(
+        1000 * 2 ** (attempt - 1),
+        10000,
+      );
+
+      logger.warn(
+        { attempt, maxAttempts, error },
+        'RabbitMQ unavailable, retrying connection',
+      );
+
+      await new Promise<void>((resolve) =>
+        setTimeout(resolve, delay),
+      );
+    }
+  }
+}
+
+
+
 async function bootstrap() {
   try {
     // 1. MUST AWAIT Database Ping first
     await checkDatabaseConnection();
 
     // 2. Connect RabbitMQ
-    await connectRabbitMQ();
+    await connectRabbitMQWithRetry();
 
     // 3. Initialize MinIO Buckets (Ensures 'videos' & 'thumbnails' exist)
     await initBuckets();

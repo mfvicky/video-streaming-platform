@@ -18,5 +18,4 @@ export interface AuthResponse {
     name?: string | null;
     role: UserRole;
   };
-  accessToken: string;
 }

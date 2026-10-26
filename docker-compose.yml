@@ -33,9 +33,14 @@ services:
       - '${RABBITMQ_MANAGEMENT_PORT:-15672}:15672'
     volumes: [rabbitmq_data:/var/lib/rabbitmq]
     healthcheck:
-      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
+      test:
+        - CMD-SHELL
+        - rabbitmq-diagnostics -q check_running && rabbitmq-diagnostics -q check_port_listener 5672 && rabbitmq-diagnostics -q check_port_connectivity
       interval: 10s
-      retries: 15
+      timeout: 15s
+      retries: 20
+      start_period: 45s
+
   minio:
     # image: quay.io/minio/minio:latest
     # 12 September 2026 https://www.stablebuild.com/blog/minio-images-disappeared-from-docker-hub?utm_source=chatgpt.com
@@ -91,6 +96,8 @@ services:
       MINIO_BUCKET_NAME: videos
       JWT_SECRET: ${JWT_SECRET}
       REFRESH_SECRET: ${REFRESH_SECRET}
+      # Local HTTP development; set COOKIE_SECURE=true behind HTTPS.
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
       RSA_PUBLIC_KEY: ${RSA_PUBLIC_KEY}
       RSA_PRIVATE_KEY: ${RSA_PRIVATE_KEY}
       RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-900000}

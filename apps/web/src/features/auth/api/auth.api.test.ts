@@ -28,7 +28,6 @@ describe('authApi', () => {
       };
 
       const mockResponse: AuthResponse = {
-        accessToken: 'mock-access-token',
         user: {
           id: 'user-1',
           email: 'test@example.com',
@@ -37,7 +36,7 @@ describe('authApi', () => {
         },
       };
 
-      vi.spyOn(apiClient, 'post').mockResolvedValueOnce({ data: mockResponse });
+      vi.spyOn(apiClient, 'post').mockResolvedValueOnce({ data: { success: true, data: mockResponse } });
 
       const result = await authApi.login(credentials);
 
@@ -46,7 +45,7 @@ describe('authApi', () => {
         email: 'test@example.com',
         password: 'encrypted_plainPassword123',
       });
-      expect(result).toEqual(mockResponse);
+      expect(result).toEqual({ success: true, data: mockResponse });
     });
 
     it('propagates API client error during login failure', async () => {

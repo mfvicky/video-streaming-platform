@@ -54,7 +54,6 @@ describe('useAuth hooks', () => {
       const mockResponse = {
         success: true,
         data: {
-          accessToken: 'mock-token',
           user: { id: '1', role: 'USER', email: 'user@example.com' },
         },
       };
@@ -74,7 +73,7 @@ describe('useAuth hooks', () => {
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-      expect(localStorage.getItem('accessToken')).toBe('mock-token');
+      expect(localStorage.getItem('accessToken')).toBeNull();
       expect(localStorage.getItem('user')).toBe(
         JSON.stringify(mockResponse.data.user),
       );

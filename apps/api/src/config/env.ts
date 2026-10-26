@@ -16,6 +16,10 @@ const envSchema = z.object({
   REFRESH_SECRET: z
     .string()
     .min(8, 'REFRESH_SECRET must be at least 8 characters'),
+  // Set true behind HTTPS; false for localhost HTTP Compose development only.
+  COOKIE_SECURE: z.enum(['true', 'false']).optional().transform((v) =>
+    v === undefined ? process.env.NODE_ENV === 'production' : v === 'true',
+  ),
   // Cryptography
   RSA_PUBLIC_KEY: z
     .string()

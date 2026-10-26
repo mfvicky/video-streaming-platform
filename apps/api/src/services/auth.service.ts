@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { createHash, randomUUID } from 'node:crypto';
-import { PrismaClient } from '@app/db';
+import { prisma } from '../lib/prisma.js';
 import {
   RegisterInput,
   LoginInput,
@@ -12,7 +12,6 @@ import { env } from '../config/env.js';
 import { decryptPassword } from '../utils/crypto.js';
 import { AppError } from '../utils/errors.js';
 
-const prisma = new PrismaClient();
 const ACCESS_TOKEN_EXPIRY = '15m';
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
 const REFRESH_TOKEN_SECONDS = REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60;
@@ -127,6 +126,15 @@ export class AuthService {
         role: user.role,
       },
     };
+  }
+
+  static async session(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, name: true, role: true },
+    });
+    if (!user) throw new AppError(401, 'Session no longer valid');
+    return user;
   }
 
   static async logout(rawToken: string | undefined): Promise<void> {

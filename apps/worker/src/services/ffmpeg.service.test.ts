@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { spawn } from 'child_process';
+import { spawn } from 'node:child_process';
 import fs from 'fs-extra';
 import path from 'path';
 import EventEmitter from 'events';
 
-vi.mock('child_process', () => ({ spawn: vi.fn() }));
+vi.mock('node:child_process', () => ({ spawn: vi.fn() }));
 vi.mock('fs-extra', () => ({
   default: {
     ensureDir: vi.fn().mockResolvedValue(undefined),

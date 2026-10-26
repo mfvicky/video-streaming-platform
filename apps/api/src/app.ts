@@ -11,6 +11,7 @@ import authRoutes from './routes/auth.routes.js';
 import videoRoutes from './routes/video.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import healthRoutes from './routes/health.routes.js';
+import { protectCookieMutations } from './middlewares/csrf.middleware.js';
 
 const app = express();
 
@@ -34,6 +35,7 @@ app.use(globalRateLimiter);
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 app.use(cookieParser());
+app.use(protectCookieMutations);
 
 // API Documentation
 setupSwagger(app);

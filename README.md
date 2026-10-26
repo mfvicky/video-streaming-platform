@@ -312,3 +312,28 @@ corepack pnpm run test:web
 corepack pnpm run lint
 corepack pnpm run format:check
 ```
+
+### docker e2e test
+
+```bash
+# Use an existing creator account in your application
+$env:TEST_EMAIL = "creatorVicky2@videostream.com"
+$env:TEST_PASSWORD = "password"
+
+# Absolute path to a valid MP4
+$env:VIDEO_FIXTURE_PATH = "C:\Users\vickys\Videos\testing-video\2024-11-11 15-39-40.mp4"
+
+# Verify the video file exists
+Test-Path $env:VIDEO_FIXTURE_PATH
+
+# Execute end-to-end test
+pnpm run test:e2e
+
+
+Remove-Item Env:TEST_EMAIL
+Remove-Item Env:TEST_PASSWORD
+Remove-Item Env:VIDEO_FIXTURE_PATH
+
+
+
+```

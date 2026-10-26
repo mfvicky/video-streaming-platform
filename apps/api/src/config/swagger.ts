@@ -83,14 +83,6 @@ const swaggerOptions: swaggerJsdoc.Options = {
           type: 'object',
           properties: {
             user: { $ref: '#/components/schemas/User' },
-            accessToken: {
-              type: 'string',
-              example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-            },
-            refreshToken: {
-              type: 'string',
-              example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-            },
           },
         },
         ErrorResponse: {
